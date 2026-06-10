@@ -68,6 +68,22 @@ class Sensitivity(str, enum.Enum):
     CRITICAL = "critical"
 
 
+class MatchStatus(str, enum.Enum):
+    """Entity-resolution decision for a finding (FR-ER-1, M2-1).
+
+    AUTO_MATCHED: above-threshold — counted in the profile and score.
+    POSSIBLE: below threshold — shown as "possible, unconfirmed", NEVER
+              auto-merged, excluded from the score until confirmed.
+    CONFIRMED / REJECTED: the user's word — overrides resolution and is
+              never overwritten by a re-run.
+    """
+
+    AUTO_MATCHED = "auto_matched"
+    POSSIBLE = "possible"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+
+
 class FindingState(str, enum.Enum):
     ACTIVE = "active"
     RESOLVED = "resolved"

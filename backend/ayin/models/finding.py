@@ -14,6 +14,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    text,
     Float,
     ForeignKey,
     Integer,
@@ -30,6 +31,7 @@ from ayin.models.base import Base, CreatedAtMixin, UuidPkMixin
 from ayin.models.enums import (
     FindingCategory,
     FindingState,
+    MatchStatus,
     RemediationStatus,
     RemediationType,
     Sensitivity,
@@ -78,6 +80,34 @@ class Finding(Base, UuidPkMixin, CreatedAtMixin):
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     vault_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     dedupe_key: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    # ── Resolution (M2-1/M2-2) ───────────────────────────────────────
+    # New findings start POSSIBLE; resolution promotes/demotes; the user's
+    # confirm/reject is final and survives re-resolution (FR-ER-1).
+    match_status: Mapped[MatchStatus] = mapped_column(
+        str_enum(MatchStatus),
+        nullable=False,
+        default=MatchStatus.POSSIBLE,
+        server_default=MatchStatus.POSSIBLE.value,
+    )
+    match_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Distinct sources that corroborate this exposure (≥1; set by dedupe).
+    corroboration_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    # Duplicate collapse (M2-2): suppressed duplicates point at their primary;
+    # the primary preserves every contributing source in merged_sources.
+    duplicate_of: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("findings.id", ondelete="SET NULL"), nullable=True
+    )
+    merged_sources: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    # Resolution working notes: match reasons, flagged conflicts (never
+    # silently merged — FR-ER-2).
+    resolution: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
 
 
 class Score(Base, UuidPkMixin):

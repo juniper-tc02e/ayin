@@ -15,20 +15,24 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ayin.models import Finding, Identifier
-from ayin.models.enums import VerificationState
+from ayin.models.enums import FindingState, VerificationState
 
 
-def visible_findings_query(subject_id: uuid.UUID):
+def visible_findings_query(subject_id: uuid.UUID, *, include_suppressed: bool = False):
     """SELECT over findings for a subject, excluding any finding keyed to an
-    identifier whose control is not verified."""
+    identifier whose control is not verified — and (default) excluding
+    suppressed duplicates, whose primaries carry their merged_sources."""
     verified_ids = select(Identifier.id).where(
         Identifier.subject_id == subject_id,
         Identifier.verification_state == VerificationState.VERIFIED,
     )
-    return select(Finding).where(
+    q = select(Finding).where(
         Finding.subject_id == subject_id,
         or_(Finding.identifier_id.is_(None), Finding.identifier_id.in_(verified_ids)),
     )
+    if not include_suppressed:
+        q = q.where(Finding.state != FindingState.SUPPRESSED)
+    return q
 
 
 def visible_findings(db: Session, subject_id: uuid.UUID) -> list[Finding]:
