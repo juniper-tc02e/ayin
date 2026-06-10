@@ -7,7 +7,6 @@ here and the orchestrator stops fanning out to it; its findings get flagged
 """
 
 import logging
-from typing import ClassVar
 
 from ayin.connectors.base import Connector, SourceGovernance
 

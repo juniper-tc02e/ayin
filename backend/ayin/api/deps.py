@@ -1,6 +1,5 @@
 """Shared FastAPI dependencies — current user, step-up enforcement."""
 
-import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status

@@ -121,7 +121,8 @@ def test_identifier_rejects_bogus_verification_state(db, engine):
         conn.execute(
             text(
                 "INSERT INTO identifiers "
-                "(id, subject_id, kind, value_raw, value_normalized, verification_state, confidence) "
+                "(id, subject_id, kind, value_raw, value_normalized, "
+                "verification_state, confidence) "
                 "VALUES (:id, :sid, 'email', 'x@example.invalid', 'x@example.invalid', "
                 "'totally-verified-trust-me', 1.0)"
             ),
@@ -138,7 +139,8 @@ def test_scan_tier_is_locked_to_t0_in_the_schema(db, engine):
     with pytest.raises(IntegrityError), engine.begin() as conn:
         conn.execute(
             text(
-                "INSERT INTO scans (id, requester_user_id, subject_id, tier, purpose, status, source_set) "
+                "INSERT INTO scans "
+                "(id, requester_user_id, subject_id, tier, purpose, status, source_set) "
                 "VALUES (:id, :uid, :sid, 't2', 'self', 'queued', '[]')"
             ),
             {"id": str(uuid.uuid4()), "uid": str(u.id), "sid": str(s.id)},
@@ -152,7 +154,8 @@ def test_scan_purpose_is_locked_to_self(db, engine):
     with pytest.raises(IntegrityError), engine.begin() as conn:
         conn.execute(
             text(
-                "INSERT INTO scans (id, requester_user_id, subject_id, tier, purpose, status, source_set) "
+                "INSERT INTO scans "
+                "(id, requester_user_id, subject_id, tier, purpose, status, source_set) "
                 "VALUES (:id, :uid, :sid, 't0', 'tenant-screening', 'queued', '[]')"
             ),
             {"id": str(uuid.uuid4()), "uid": str(u.id), "sid": str(s.id)},

@@ -9,9 +9,8 @@ import uuid
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 
-from ayin.models import AuditRecord, GENESIS_HASH
+from ayin.models import GENESIS_HASH, AuditRecord
 from ayin.safety.audit import (
     record_data_access,
     record_event,
@@ -89,7 +88,10 @@ def test_tampering_with_trigger_disabled_is_detected(db, engine):
 
     with engine.begin() as conn:  # superuser/owner-only path, simulating an attacker
         conn.execute(text("ALTER TABLE audit_records DISABLE TRIGGER trg_audit_records_immutable"))
-        conn.execute(text("UPDATE audit_records SET event_type='auth.evil' WHERE event_type='auth.login'"))
+        conn.execute(
+            text("UPDATE audit_records SET event_type='auth.evil' "
+                 "WHERE event_type='auth.login'")
+        )
         conn.execute(text("ALTER TABLE audit_records ENABLE TRIGGER trg_audit_records_immutable"))
 
     ok, bad_id = verify_chain(db)

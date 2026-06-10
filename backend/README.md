@@ -17,13 +17,19 @@ ayin/
 tests/           unit tests + findings-accuracy QA harness
 ```
 
-## Run (once scaffolded — BUILD-PLAN M0-1)
+## Run
 
 ```bash
-uvicorn ayin.api.main:app --reload              # API → :8000
-celery -A ayin.orchestrator worker -l info      # workers
-pytest                                          # tests
+pip install -e ".[dev]"                          # once
+python -m alembic upgrade head                   # apply migrations
+uvicorn ayin.api.main:app --reload               # API → :8000
+celery -A ayin.orchestrator worker -l info       # workers (from M1-1)
+python -m pytest                                 # tests — no Docker needed (pgserver + fakeredis)
+python -m ruff check . && python -m mypy ayin    # lint + types
 ```
+
+Config comes from env / `../.env` (see `../.env.example`). Tests boot their own
+throwaway Postgres and apply migrations from scratch each session.
 
 ## Rules (see `../CLAUDE.md`)
 

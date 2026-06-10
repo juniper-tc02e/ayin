@@ -125,7 +125,9 @@ def list_identifiers(user: CurrentUser, db: DbDep, subject: Subject = Depends(ge
     )
     db.commit()
     rows = db.execute(
-        select(Identifier).where(Identifier.subject_id == subject.id).order_by(Identifier.created_at)
+        select(Identifier)
+        .where(Identifier.subject_id == subject.id)
+        .order_by(Identifier.created_at)
     ).scalars()
     return [_out(i) for i in rows]
 

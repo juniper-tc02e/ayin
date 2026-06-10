@@ -42,6 +42,7 @@ class FakeConnector(Connector):
 
     def fetch(self, seed: SeedQuery) -> list[RawResult]:
         now = datetime.now(timezone.utc)
+        payloads: list[dict]
         if seed.kind == IdentifierKind.EMAIL:
             payloads = [
                 {"type": "breach", "name": "ExampleBreach-2024 (FAKE)",

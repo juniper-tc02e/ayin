@@ -6,6 +6,7 @@ Every event here writes an audit record in the same transaction.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import select
 
 from ayin.api.deps import CurrentUser, DbDep, SettingsDep
 from ayin.api.schemas import (
@@ -20,8 +21,6 @@ from ayin.api.schemas import (
 from ayin.auth.passwords import hash_password, password_problems, verify_password
 from ayin.auth.tokens import issue_session_token, issue_step_up_token
 from ayin.auth.verification import consume_link_token, create_link_token
-from sqlalchemy import select
-
 from ayin.models import Identifier, Subject, TokenKind, User
 from ayin.models.enums import IdentifierKind, VerificationState
 from ayin.safety.audit import record_event, user_actor

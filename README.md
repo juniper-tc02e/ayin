@@ -20,7 +20,7 @@ The scan is an 8-step async pipeline — `INPUT → DISCOVERY → RESOLUTION →
 
 ## Quickstart (local dev)
 
-> Prerequisites: Docker Desktop, Node 20+, Python 3.11+, Git. The MVP stack is scaffolded by working through `docs/BUILD-PLAN.md` ticket **M0-1**.
+> Prerequisites: Docker Desktop, Node 20+, Python 3.10+, Git.
 
 ```bash
 # 1. configure environment
@@ -30,6 +30,16 @@ cp .env.example .env        # then fill in the placeholders
 docker compose up
 
 # api → http://localhost:8000   web → http://localhost:3000
+# maildev (dev email inbox) → http://localhost:1080
+
+# 3. apply database migrations (first run, and after pulling new ones)
+cd backend && pip install -e ".[dev]" && python -m alembic upgrade head
+```
+
+Backend tests run **without Docker** (throwaway Postgres via `pgserver`):
+
+```bash
+cd backend && python -m pytest
 ```
 
 ## Working on Ayin with Claude Code
@@ -52,7 +62,7 @@ See `CLAUDE.md` and PRD §7, §19, §20 for the full trust architecture.
 
 ## Status
 
-Pre-MVP — planning complete, scaffold in place. Building toward the §13.7 go/no-go.
+Pre-MVP — **milestone M0 (Foundations) complete**: dev stack, core data model + migrations, email/password auth with identifier verification, versioned ToS gate, immutable audit log, connector contract + FakeConnector. Next: M1 (Discovery). Building toward the §13.7 go/no-go.
 
 ---
 

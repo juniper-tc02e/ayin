@@ -10,11 +10,10 @@ Every scan and every access to subject data — including internal/staff
 access — writes a record. There is intentionally no ORM ``update`` path here.
 """
 
+import uuid as uuid_mod
 from datetime import datetime
 
-import uuid as uuid_mod
-
-from sqlalchemy import BigInteger, String, Text, Uuid, func
+from sqlalchemy import BigInteger, String, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 

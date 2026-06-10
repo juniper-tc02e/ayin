@@ -18,19 +18,19 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 Goal: an empty but trustworthy skeleton — a request can authenticate, accept the ToS, and write an audit record, and a fake connector can run behind the contract.
 
-- [ ] **M0-1 — Local dev environment.** Docker Compose with Postgres + Redis + MinIO; `.env.example` → `.env`; one `make dev` / task runner entry that boots the stack. Backend (FastAPI) and frontend (Next.js) skeletons run and talk to each other.
+- [x] **M0-1 — Local dev environment.** Docker Compose with Postgres + Redis + MinIO; `.env.example` → `.env`; one `make dev` / task runner entry that boots the stack. Backend (FastAPI) and frontend (Next.js) skeletons run and talk to each other.
   - *Accept:* `docker compose up` brings up all services; API health check green; frontend renders a placeholder landing page.
-- [ ] **M0-2 — Data model + migrations.** Implement core entities (`User`, `Subject`, `Identifier`, `Scan`, `Finding`, `Score`, `RemediationTask`, `AuditRecord`, `AbuseSignal`) as migrations. (PRD §10.4)
+- [x] **M0-2 — Data model + migrations.** Implement core entities (`User`, `Subject`, `Identifier`, `Scan`, `Finding`, `Score`, `RemediationTask`, `AuditRecord`, `AbuseSignal`) as migrations. (PRD §10.4)
   - *Accept:* migrations apply cleanly; every Finding row requires `source`, `captured_at`, `confidence`, `sensitivity`; Identifier has a `verification_state`.
-- [ ] **M0-3 — Account creation + auth.** Email/OAuth signup; session/JWT; per-user isolation. (FR-AUTH-1)
+- [x] **M0-3 — Account creation + auth.** Email/OAuth signup; session/JWT; per-user isolation. (FR-AUTH-1)
   - *Accept:* user can sign up, log in, log out; no cross-user data access.
-- [ ] **M0-4 — Self-identity verification.** Prove control of each seed identifier before its results are viewable (email link, phone OTP); step-up before any credential-level data. (FR-AUTH-1)
+- [x] **M0-4 — Self-identity verification.** Prove control of each seed identifier before its results are viewable (email link, phone OTP); step-up before any credential-level data. (FR-AUTH-1)
   - *Accept:* unverified identifier cannot surface sensitive results; verification state stored on the Identifier.
-- [ ] **M0-5 — ToS/AUP gate.** Versioned ToS + Acceptable-Use Policy acceptance recorded with timestamp; scan blocked until accepted; re-prompt on version change. (FR-AUTH-2)
+- [x] **M0-5 — ToS/AUP gate.** Versioned ToS + Acceptable-Use Policy acceptance recorded with timestamp; scan blocked until accepted; re-prompt on version change. (FR-AUTH-2)
   - *Accept:* first scan is blocked until acceptance row exists; version bump re-prompts.
-- [ ] **M0-6 — Immutable audit log.** Append-only `AuditRecord` writer used by a thin `record_scan_event()` / `record_data_access()` helper; tamper-evident (hash chain or append-only table + checks). (FR-TS-1)
+- [x] **M0-6 — Immutable audit log.** Append-only `AuditRecord` writer used by a thin `record_scan_event()` / `record_data_access()` helper; tamper-evident (hash chain or append-only table + checks). (FR-TS-1)
   - *Accept:* every scan and every subject-data read writes a record; records are not updatable/deletable through the app.
-- [ ] **M0-7 — Connector contract.** Define the uniform interface every source implements: `authenticate`, `fetch`, `normalize`, rate-limit + backoff, cost telemetry, and a `SourceGovernance` metadata block (legal basis, access method, ToS ref, data classes, cost/call, rate limits, counsel sign-off flag). Ship a `FakeConnector` implementing it. (FR-DISC-4, PRD §11.4)
+- [x] **M0-7 — Connector contract.** Define the uniform interface every source implements: `authenticate`, `fetch`, `normalize`, rate-limit + backoff, cost telemetry, and a `SourceGovernance` metadata block (legal basis, access method, ToS ref, data classes, cost/call, rate limits, counsel sign-off flag). Ship a `FakeConnector` implementing it. (FR-DISC-4, PRD §11.4)
   - *Accept:* `FakeConnector` runs through the contract and emits normalized Findings with full attribution; a connector cannot be registered without a complete governance block.
 
 ## M1 — Discovery (PRD weeks 2–5)
