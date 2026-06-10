@@ -8,6 +8,7 @@ from ayin.models.finding import Finding, RemediationTask, Score
 from ayin.models.scan import Scan
 from ayin.models.subject import Identifier, Subject
 from ayin.models.user import User
+from ayin.models.verification import TokenKind, VerificationToken
 
 __all__ = [
     "Base",
@@ -21,4 +22,6 @@ __all__ = [
     "AuditRecord",
     "GENESIS_HASH",
     "AbuseSignal",
+    "VerificationToken",
+    "TokenKind",
 ]

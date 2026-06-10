@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { fetchHealth } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,10 @@ export default async function LandingPage() {
           </div>
         )}
       </div>
+
+      <p style={{ marginTop: "2rem" }}>
+        <Link href="/signup">Create an account</Link> · <Link href="/login">Log in</Link>
+      </p>
 
       <p className="dim" style={{ marginTop: "2rem", fontSize: "0.85rem" }}>
         Pre-MVP build (milestone M0). Scan onboarding, exposure report, and your data &amp; rights

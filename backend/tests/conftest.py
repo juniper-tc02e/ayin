@@ -73,7 +73,7 @@ def fake_redis():
 @pytest.fixture()
 def unique_email() -> str:
     """Clearly-fake, collision-free address for a test user."""
-    return f"test-{uuid.uuid4().hex[:10]}@example.invalid"
+    return f"test-{uuid.uuid4().hex[:10]}@example.org"
 
 
 def _truncate_all(engine) -> None:
