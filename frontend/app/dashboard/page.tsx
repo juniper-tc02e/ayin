@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, User } from "@/lib/api";
 import IdentifierManager from "@/components/IdentifierManager";
+import TosGate from "@/components/TosGate";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -47,6 +48,7 @@ export default function DashboardPage() {
           </p>
         )}
       </div>
+      <TosGate />
       <IdentifierManager />
       <div className="card">
         <p className="dim" style={{ margin: 0 }}>
