@@ -27,8 +27,7 @@ from ayin.models.enums import (
 )
 from ayin.orchestrator import engine as orch
 from ayin.resolution.feedback import confirm_finding, reject_finding
-from ayin.scoring import compute_score, verdict
-from ayin.scoring import rubric
+from ayin.scoring import compute_score, rubric, verdict
 from ayin.vault import NullVault
 
 NOW = datetime(2026, 6, 10, tzinfo=timezone.utc)
@@ -149,14 +148,16 @@ def test_sensitivity_orders_impact(db, ctx):
 
 
 def test_recency_decay_old_breach_scores_less(db, ctx):
-    fresh = _finding(db, ctx, payload={"breach_date": (NOW - timedelta(days=30)).date().isoformat()})
+    recent = (NOW - timedelta(days=30)).date().isoformat()
+    fresh = _finding(db, ctx, payload={"breach_date": recent})
     stale = _finding(db, ctx, payload={"breach_date": "2014-01-01"})
     db.commit()
     score = compute_score(db, ctx["scan"])
     by_id = {c["finding_id"]: c["points"] for c in score.contributing}
     assert by_id[str(fresh.id)] > by_id[str(stale.id)]
     # but old exposure never decays to zero (floor)
-    assert by_id[str(stale.id)] >= rubric.SENSITIVITY_BASE[Sensitivity.HIGH] * 0.6 * rubric.RECENCY_FLOOR * 0.99
+    floor_points = rubric.SENSITIVITY_BASE[Sensitivity.HIGH] * 0.6 * rubric.RECENCY_FLOOR
+    assert by_id[str(stale.id)] >= floor_points * 0.99
 
 
 def test_corroboration_raises_points(db, ctx):

@@ -14,7 +14,6 @@ from datetime import datetime
 
 from sqlalchemy import (
     CheckConstraint,
-    text,
     Float,
     ForeignKey,
     Integer,
@@ -23,6 +22,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column

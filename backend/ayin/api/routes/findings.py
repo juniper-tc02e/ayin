@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from ayin.api.deps import CurrentUser, DbDep
-from ayin.api.schemas import MessageOut
 from ayin.api.routes.identifiers import get_my_subject
+from ayin.api.schemas import MessageOut
 from ayin.models import Finding, Subject
 from ayin.resolution.feedback import FeedbackError, confirm_finding, reject_finding
 

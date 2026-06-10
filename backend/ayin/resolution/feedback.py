@@ -62,8 +62,8 @@ def _recompute_score_if_available(db: Session, scan_id: uuid.UUID) -> None:
     """Score recompute lands with M2-3; this hook makes confirm/reject
     immediately consistent once scoring exists."""
     try:
-        from ayin.scoring import compute_score  # noqa: PLC0415
         from ayin.models import Scan  # noqa: PLC0415
+        from ayin.scoring import compute_score  # noqa: PLC0415
 
         scan = db.get(Scan, scan_id)
         if scan is not None:

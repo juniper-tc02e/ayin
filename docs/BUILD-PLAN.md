@@ -54,11 +54,11 @@ Goal: three real connectors produce sourced findings, driven by a queue-based or
 
 Goal: merge the user's own identifiers without namesake mixing, and turn findings into one explainable score.
 
-- [ ] **M2-1 — Self-identifier entity resolution.** Rules + thresholds over the user's *own verified* identifiers; no auto-merge of low-confidence records; user can confirm/reject. (FR-ER-1, FR-ER-2)
+- [x] **M2-1 — Self-identifier entity resolution.** Rules + thresholds over the user's *own verified* identifiers; no auto-merge of low-confidence records; user can confirm/reject. (FR-ER-1, FR-ER-2)
   - *Accept:* same-person records merge above threshold; below-threshold shown as "possible, unconfirmed"; false-merge rate measured in tests.
-- [ ] **M2-2 — Dedupe + classify + attribute.** Deduplicate findings; classify by category + sensitivity; flag conflicting data rather than silently merging. (FR-ER-2, PRD §23.2)
+- [x] **M2-2 — Dedupe + classify + attribute.** Deduplicate findings; classify by category + sensitivity; flag conflicting data rather than silently merging. (FR-ER-2, PRD §23.2)
   - *Accept:* duplicates collapse with sources preserved; every finding has category + sensitivity.
-- [ ] **M2-3 — Exposure Score v0 + rubric.** 0–100 overall + category sub-scores (Credentials, Brokers, Social, Records, Linkage), weighted by sensitivity × exploitability × recency × corroboration; versioned rubric; each point traces to findings. (FR-SCORE-1, PRD §8.3, §23.3)
+- [x] **M2-3 — Exposure Score v0 + rubric.** 0–100 overall + category sub-scores (Credentials, Brokers, Social, Records, Linkage), weighted by sensitivity × exploitability × recency × corroboration; versioned rubric; each point traces to findings. (FR-SCORE-1, PRD §8.3, §23.3)
   - *Accept:* score recomputes per scan; tapping a contributor shows the findings; rubric version is labeled; measures exposure only (no character/eligibility signal).
 
 ## M3 — Report + safety (PRD weeks 7–9)

@@ -24,7 +24,7 @@ from ayin.models.enums import (
     Sensitivity,
     VerificationState,
 )
-from ayin.resolution.canonical import canonical_exposure_key, normalize_url
+from ayin.resolution.canonical import normalize_url
 from ayin.resolution.engine import AUTO_MATCH_THRESHOLD, resolve_scan
 from ayin.resolution.feedback import confirm_finding, reject_finding
 
