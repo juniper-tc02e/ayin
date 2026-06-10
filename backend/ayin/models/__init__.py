@@ -10,6 +10,7 @@ from ayin.models.scan import Scan
 from ayin.models.subject import Identifier, Subject
 from ayin.models.tos import TosAcceptance
 from ayin.models.user import User
+from ayin.models.vault import VaultItem, VaultKey
 from ayin.models.verification import TokenKind, VerificationToken
 
 __all__ = [
@@ -26,6 +27,8 @@ __all__ = [
     "GENESIS_HASH",
     "AbuseSignal",
     "TosAcceptance",
+    "VaultKey",
+    "VaultItem",
     "VerificationToken",
     "TokenKind",
 ]

@@ -90,6 +90,8 @@ class Settings(BaseSettings):
             problems.append("DATABASE_URL uses the placeholder password")
         if not self.cookie_secure:
             problems.append("COOKIE_SECURE must be true in production")
+        if not self.vault_master_key:
+            problems.append("VAULT_MASTER_KEY is required in production (KMS-backed)")
         if problems:
             raise RuntimeError(f"Refusing to start in production: {'; '.join(problems)}")
 
