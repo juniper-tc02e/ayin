@@ -1,0 +1,116 @@
+# Ayin — local dev stack (BUILD-PLAN M0-1).
+# `docker compose up` boots Postgres + Redis + MinIO + MailDev + api + web.
+# Copy .env.example → .env first; every value below has a local-only fallback.
+#
+# Dev-mode notes:
+# - api/web run from official base images with the source bind-mounted and
+#   deps installed into named volumes on first boot (no Dockerfiles yet —
+#   production images are a Phase-1 task). First start is slow; later starts are fast.
+# - node_modules / pip cache live in named volumes, NOT in the host folder
+#   (keeps OneDrive/large trees out of the repo).
+
+name: ayin
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ayin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_DB: ${POSTGRES_DB:-ayin}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ayin} -d ${POSTGRES_DB:-ayin}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-change-me-local-only}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-change-me-local-only}
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Local SMTP sink — verification emails land at http://localhost:1080 in dev.
+  maildev:
+    image: maildev/maildev:latest
+    ports:
+      - "1080:1080" # web UI
+      - "1025:1025" # SMTP
+
+  api:
+    image: python:3.12-slim
+    working_dir: /app
+    command: >
+      sh -c "pip install --quiet -e . &&
+             uvicorn ayin.api.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ayin}:${POSTGRES_PASSWORD:-change-me-local-only}@postgres:5432/${POSTGRES_DB:-ayin}
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-ayin-artifacts}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-change-me-local-only}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-change-me-local-only}
+      APP_SECRET: ${APP_SECRET:-dev-only-insecure-secret}
+      WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3000}
+      SMTP_HOST: maildev
+      SMTP_PORT: 1025
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - api-pip-cache:/root/.cache/pip
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run dev"
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_BASE_URL:-http://localhost:8000}
+      # Server components inside the container reach the api by service name.
+      API_INTERNAL_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - web-node-modules:/app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  api-pip-cache:
+  web-node-modules:

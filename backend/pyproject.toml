@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ayin-backend"
+version = "0.1.0"
+description = "Ayin — OSINT self-exposure scanner (API gateway + scan workers)"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.1",
+    "redis>=5.0",
+    "celery>=5.4",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "email-validator>=2.1",
+    "argon2-cffi>=23.1",
+    "pyjwt>=2.8",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pgserver>=0.1.4",   # self-contained Postgres for tests — no Docker needed
+    "fakeredis>=2.23",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.setuptools.packages.find]
+include = ["ayin*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]      # S = bandit security rules
+ignore = ["S101"]                             # assert is fine in this codebase (tests + invariants)
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]                 # clearly-fake test passwords/tokens
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = false
