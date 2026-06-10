@@ -21,22 +21,42 @@ os.environ["DATABASE_URL"] = _pg.get_uri()
 os.environ["APP_ENV"] = "test"
 os.environ["EMAIL_CONSOLE_FALLBACK"] = "true"
 
+from alembic import command as alembic_command  # noqa: E402
+from alembic.config import Config as AlembicConfig  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
 from ayin.config import get_settings  # noqa: E402
-from ayin.db import get_engine, get_sessionmaker, reset_engine_cache  # noqa: E402
+from ayin.db import get_engine, get_sessionmaker  # noqa: E402
 
 get_settings.cache_clear()
 
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _migrated():
+    """Apply migrations once per test session — proves they run on an empty DB."""
+    cfg = AlembicConfig(os.path.join(_BACKEND_DIR, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(_BACKEND_DIR, "migrations"))
+    alembic_command.upgrade(cfg, "head")
+    yield
+
 
 @pytest.fixture(scope="session")
-def pg_url() -> str:
-    return _pg.get_uri()
-
-
-@pytest.fixture(scope="session")
-def engine():
+def engine(_migrated):
     return get_engine()
+
+
+@pytest.fixture(autouse=True)
+def _clean_db(_migrated):
+    """Start every test from an empty (but migrated) database.
+
+    The audit trigger blocks row UPDATE/DELETE (app-level immutability);
+    TRUNCATE remains possible for the table *owner* only — tests are the
+    owner, the production app role never is. See migration 0001.
+    """
+    _truncate_all(get_engine())
+    yield
 
 
 @pytest.fixture()
@@ -57,22 +77,17 @@ def unique_email() -> str:
 
 
 def _truncate_all(engine) -> None:
-    """Wipe data between tests without dropping schema.
-
-    The audit table's trigger blocks row UPDATE/DELETE (app-level immutability);
-    TRUNCATE remains possible for the table *owner* only — which tests are, and
-    the production app role never is. See migration 0001.
-    """
     with engine.begin() as conn:
-        tables = conn.execute(
-            text(
-                "SELECT tablename FROM pg_tables "
-                "WHERE schemaname='public' AND tablename != 'alembic_version'"
+        tables = (
+            conn.execute(
+                text(
+                    "SELECT tablename FROM pg_tables "
+                    "WHERE schemaname='public' AND tablename != 'alembic_version'"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         if tables:
             joined = ", ".join(f'"{t}"' for t in tables)
             conn.execute(text(f"TRUNCATE {joined} RESTART IDENTITY CASCADE"))
-
-
-__all__ = ["reset_engine_cache", "_truncate_all"]
