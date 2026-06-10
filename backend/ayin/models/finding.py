@@ -55,6 +55,13 @@ class Finding(Base, UuidPkMixin, CreatedAtMixin):
     subject_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Which seed identifier produced this finding (NULL = derived/cross-seed).
+    # CASCADE: removing a seed removes its findings — data minimization.
+    # Gate: findings keyed to an UNVERIFIED identifier are never shown
+    # (ayin.safety.visibility, FR-AUTH-1).
+    identifier_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("identifiers.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     category: Mapped[FindingCategory] = mapped_column(str_enum(FindingCategory), nullable=False)
     sensitivity: Mapped[Sensitivity] = mapped_column(str_enum(Sensitivity), nullable=False)
     # Attribution — mandatory (no mystery data).

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, User } from "@/lib/api";
+import IdentifierManager from "@/components/IdentifierManager";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -46,9 +47,10 @@ export default function DashboardPage() {
           </p>
         )}
       </div>
+      <IdentifierManager />
       <div className="card">
         <p className="dim" style={{ margin: 0 }}>
-          Identifier management and your first scan arrive with milestones M0-4 → M1.
+          Your first scan arrives with milestone M1.
         </p>
       </div>
       <p style={{ marginTop: "1.5rem" }}>

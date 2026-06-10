@@ -20,7 +20,10 @@ from ayin.api.schemas import (
 from ayin.auth.passwords import hash_password, password_problems, verify_password
 from ayin.auth.tokens import issue_session_token, issue_step_up_token
 from ayin.auth.verification import consume_link_token, create_link_token
-from ayin.models import Subject, TokenKind, User
+from sqlalchemy import select
+
+from ayin.models import Identifier, Subject, TokenKind, User
+from ayin.models.enums import IdentifierKind, VerificationState
 from ayin.safety.audit import record_event, user_actor
 from ayin.services.email import EmailSender, get_email_sender_factory
 
@@ -96,7 +99,19 @@ def signup(
     db.add(user)
     db.flush()
     # T0: the requester IS the subject — created together (CLAUDE.md #1).
-    db.add(Subject(owner_user_id=user.id))
+    subject = Subject(owner_user_id=user.id)
+    db.add(subject)
+    db.flush()
+    # The account email is the first seed identifier; verifying the account
+    # email (link below) verifies control of this seed too.
+    db.add(
+        Identifier(
+            subject_id=subject.id,
+            kind=IdentifierKind.EMAIL,
+            value_raw=body.email,
+            value_normalized=email,
+        )
+    )
     db.flush()
     record_event(db, actor=user_actor(user.id), event_type="auth.signup")
     _send_account_verification(db, settings, sender, user)
@@ -156,9 +171,30 @@ def verify_email(body: VerifyEmailIn, db: DbDep, settings: SettingsDep):
     user = db.get(User, row.user_id)
     if user is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Account no longer exists.")
+    now = datetime.now(timezone.utc)
     if user.email_verified_at is None:
-        user.email_verified_at = datetime.now(timezone.utc)
+        user.email_verified_at = now
     record_event(db, actor=user_actor(user.id), event_type="auth.email_verified")
+    # Control of the account email is control of the matching seed identifier.
+    subject = db.execute(
+        select(Subject).where(Subject.owner_user_id == user.id)
+    ).scalar_one_or_none()
+    if subject is not None:
+        ident = db.execute(
+            select(Identifier).where(
+                Identifier.subject_id == subject.id,
+                Identifier.kind == IdentifierKind.EMAIL,
+                Identifier.value_normalized == user.email,
+            )
+        ).scalar_one_or_none()
+        if ident is not None and ident.verification_state != VerificationState.VERIFIED:
+            ident.verification_state = VerificationState.VERIFIED
+            ident.verified_at = now
+            record_event(
+                db, actor=user_actor(user.id), event_type="identifier.verified",
+                subject_id=subject.id,
+                detail={"identifier_id": str(ident.id), "kind": "email", "via": "account_email"},
+            )
     db.commit()
     return _user_out(user)
 

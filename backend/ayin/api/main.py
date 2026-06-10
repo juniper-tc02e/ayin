@@ -65,10 +65,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         status = "ok" if db == "ok" and redis_state == "ok" else "degraded"
         return {"status": status, "db": db, "redis": redis_state, "version": __version__}
 
-    # Routers land with their tickets: M0-4 identifiers · M0-5 tos · M1-1 scans …
-    from ayin.api.routes import auth
+    # Routers land with their tickets: M0-5 tos · M1-1 scans …
+    from ayin.api.routes import auth, identifiers
 
     app.include_router(auth.router)
+    app.include_router(identifiers.router)
     return app
 
 
