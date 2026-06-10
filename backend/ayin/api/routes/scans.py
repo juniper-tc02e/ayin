@@ -14,11 +14,19 @@ from sqlalchemy import select
 
 from ayin.api.deps import CurrentUser, DbDep, SettingsDep
 from ayin.api.routes.identifiers import get_my_subject
-from ayin.api.schemas import FindingOut, FindingsPage, JobOut, ScanOut, ScanProgress
+from ayin.api.schemas import (
+    FindingOut,
+    FindingsPage,
+    JobOut,
+    ScanOut,
+    ScanProgress,
+    ScoreContributorOut,
+    ScoreOut,
+)
 from ayin.auth.tokens import SCOPE_STEP_UP, decode_token
 from ayin.connectors import ConnectorRegistry
 from ayin.connectors import registry as global_registry
-from ayin.models import ConnectorJob, Finding, Scan, Subject
+from ayin.models import ConnectorJob, Finding, Scan, Score, Subject
 from ayin.models.enums import FindingCategory, JobStatus
 from ayin.orchestrator import engine
 from ayin.safety.audit import record_data_access, user_actor
@@ -153,6 +161,39 @@ def get_scan(
     )
     db.commit()
     return _scan_out(db, scan)
+
+
+@router.get("/{scan_id}/score", response_model=ScoreOut)
+def get_score(
+    scan_id: uuid.UUID,
+    user: CurrentUser,
+    db: DbDep,
+    subject: Subject = Depends(get_my_subject),
+):
+    """The Exposure Score: 0-100 + sub-scores + every contributing finding.
+    Measures exposure of data only — never the person (CLAUDE.md #2)."""
+    from ayin.scoring.engine import verdict as _verdict  # noqa: PLC0415
+
+    scan = _owned_scan(db, subject, scan_id)
+    score = db.execute(select(Score).where(Score.scan_id == scan.id)).scalar_one_or_none()
+    if score is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "No score yet — the scan may still be running."
+        )
+    record_data_access(
+        db, actor=user_actor(user.id), subject_id=subject.id,
+        resource="score", purpose="self-view", scan_id=scan.id,
+    )
+    db.commit()
+    return ScoreOut(
+        scan_id=scan.id,
+        overall=score.overall,
+        subscores=score.subscores,
+        rubric_version=score.rubric_version,
+        computed_at=score.computed_at,
+        verdict=_verdict(score.overall),
+        contributing=[ScoreContributorOut(**c) for c in score.contributing],
+    )
 
 
 @router.get("/{scan_id}/findings", response_model=FindingsPage)

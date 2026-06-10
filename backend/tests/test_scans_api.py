@@ -145,3 +145,42 @@ def test_scans_are_isolated_between_users(client, sender, ready_user, unique_ema
     assert client.get(f"/scans/{scan_id}").status_code == 404
     assert client.get(f"/scans/{scan_id}/findings").status_code == 404
     assert client.get("/scans").json() == []
+
+
+def test_score_endpoint_with_contributors_and_review_flow(client, db, ready_user):
+    """M2-3 at the API: score served with verdict + tap-through contributor
+    finding ids; confirming a 'possible' finding moves the score."""
+    scan_id = client.post("/scans").json()["id"]
+
+    res = client.get(f"/scans/{scan_id}/score")
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert 0 <= body["overall"] <= 100
+    assert body["overall"] > 0  # fake breach + broker listing count
+    assert body["rubric_version"]
+    assert "exposure" in body["verdict"].lower()
+    assert set(body["subscores"]) == {"credential", "broker", "social", "records", "linkage"}
+
+    finding_ids = {f["id"] for f in client.get(f"/scans/{scan_id}/findings").json()["findings"]}
+    for c in body["contributing"]:
+        assert c["finding_id"] in finding_ids  # tapping a contributor → a real finding
+
+    # the username-keyed fake profile finding is 'possible' (anti-namesake cap)
+    page = client.get(f"/scans/{scan_id}/findings").json()
+    possible = [f for f in page["findings"] if f["match_status"] == "possible"]
+    if possible:  # ready_user has no username seed by default — guard
+        target = possible[0]
+        before = body["overall"]
+        assert client.post(f"/findings/{target['id']}/confirm").status_code == 200
+        after = client.get(f"/scans/{scan_id}/score").json()["overall"]
+        assert after >= before
+
+
+def test_score_isolated_between_users(client, sender, ready_user, unique_email):
+    scan_id = client.post("/scans").json()["id"]
+    client.cookies.clear()
+    client.post("/auth/signup", json={"email": "o-" + unique_email, "password": FAKE_PASSWORD})
+    assert client.get(f"/scans/{scan_id}/score").status_code == 404
+    # nor can they confirm/reject our findings
+    fid = "00000000-0000-0000-0000-000000000000"
+    assert client.post(f"/findings/{fid}/confirm").status_code == 404

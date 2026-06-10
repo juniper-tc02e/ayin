@@ -349,7 +349,9 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
 
     resolve_scan(db, scan)
     _transition(db, scan, ScanStatus.SCORING, actor=actor, event="scan.scoring")
-    # M2-3 hook: Exposure Score v0 computes here.
+    from ayin.scoring import compute_score  # noqa: PLC0415 — avoid import cycle
+
+    compute_score(db, scan)
     failed = [j.connector_id for j in jobs if j.status == JobStatus.FAILED]
     if failed:
         scan.error = f"partial: connectors failed: {', '.join(sorted(failed))}"

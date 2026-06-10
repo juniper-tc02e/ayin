@@ -128,3 +128,23 @@ class FindingsPage(BaseModel):
     scan_id: uuid.UUID
     findings: list[FindingOut]
     locked_credential_findings: int = 0
+
+
+# ── Score (M2-3) ──────────────────────────────────────────────
+
+
+class ScoreContributorOut(BaseModel):
+    finding_id: uuid.UUID
+    category: str
+    points: float
+    reason: str
+
+
+class ScoreOut(BaseModel):
+    scan_id: uuid.UUID
+    overall: int
+    subscores: dict
+    rubric_version: str
+    computed_at: datetime
+    verdict: str
+    contributing: list[ScoreContributorOut]
