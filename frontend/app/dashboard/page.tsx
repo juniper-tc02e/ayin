@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, User } from "@/lib/api";
 import IdentifierManager from "@/components/IdentifierManager";
 import TosGate from "@/components/TosGate";
+import ScanPanel from "@/components/ScanPanel";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -50,11 +51,7 @@ export default function DashboardPage() {
       </div>
       <TosGate />
       <IdentifierManager />
-      <div className="card">
-        <p className="dim" style={{ margin: 0 }}>
-          Your first scan arrives with milestone M1.
-        </p>
-      </div>
+      <ScanPanel />
       <p style={{ marginTop: "1.5rem" }}>
         <button
           onClick={logout}

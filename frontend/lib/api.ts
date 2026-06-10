@@ -42,15 +42,61 @@ export class ApiError extends Error {
   }
 }
 
+export type ScanJob = {
+  connector_id: string;
+  status: "queued" | "running" | "done" | "failed";
+  findings_count: number;
+  attempts: number;
+  error: string | null;
+};
+
+export type Scan = {
+  id: string;
+  status: string;
+  error: string | null;
+  source_set: string[];
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  progress: { jobs_total: number; jobs_done: number; jobs_failed: number };
+  jobs: ScanJob[];
+};
+
+export type Finding = {
+  id: string;
+  category: "credential" | "broker" | "social" | "records" | "linkage";
+  sensitivity: "low" | "medium" | "high" | "critical";
+  source: string;
+  source_name: string;
+  source_url: string | null;
+  captured_at: string;
+  confidence: number;
+  exploitability: number | null;
+  summary: string;
+  payload: Record<string, unknown>;
+  identifier_id: string | null;
+  state: string;
+  step_up_required: boolean;
+};
+
+export type FindingsPage = {
+  scan_id: string;
+  findings: Finding[];
+  locked_credential_findings: number;
+};
+
 /** JSON fetch with session cookie included; throws ApiError on non-2xx. */
 export async function api<T>(
   path: string,
-  init?: { method?: string; body?: unknown }
+  init?: { method?: string; body?: unknown; headers?: Record<string, string> }
 ): Promise<T> {
   const res = await fetch(`${apiBase()}${path}`, {
     method: init?.method ?? "GET",
     credentials: "include",
-    headers: init?.body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    headers: {
+      ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(init?.headers ?? {}),
+    },
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     cache: "no-store",
   });
@@ -58,7 +104,10 @@ export async function api<T>(
     let detail = res.statusText;
     try {
       const data = await res.json();
-      detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+      if (typeof data.detail === "string") detail = data.detail;
+      else if (data.detail?.reason) detail = data.detail.reason;
+      else if (data.detail?.message) detail = data.detail.message;
+      else detail = JSON.stringify(data.detail);
     } catch {
       /* keep statusText */
     }

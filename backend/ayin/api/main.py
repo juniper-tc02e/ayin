@@ -66,7 +66,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": status, "db": db, "redis": redis_state, "version": __version__}
 
     from ayin.api.routes import auth, identifiers, scans, tos
+    from ayin.connectors.bootstrap import configure_default_connectors
 
+    configure_default_connectors(settings)
     app.include_router(auth.router)
     app.include_router(identifiers.router)
     app.include_router(tos.router)

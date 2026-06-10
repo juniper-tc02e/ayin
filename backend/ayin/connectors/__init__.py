@@ -5,6 +5,11 @@ logic NEVER calls a source API directly (CLAUDE.md). Add/version/disable a
 source without touching the core.
 """
 
+# Import connector modules for their registration side effects.
+import ayin.connectors.breach  # noqa: F401
+import ayin.connectors.broker.detector  # noqa: F401
+import ayin.connectors.fake  # noqa: F401
+import ayin.connectors.websearch  # noqa: F401
 from ayin.connectors.base import (
     AccessMethod,
     Connector,
