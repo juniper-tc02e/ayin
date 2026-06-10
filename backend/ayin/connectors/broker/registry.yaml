@@ -1,0 +1,460 @@
+# Ayin data-broker registry (M1-4, PRD §13.6) — hand-curated, high-impact US
+# people-search/broker sites. This file is an operational dataset: it drives
+# DETECTION ONLY in the MVP (removal automation is Phase 2 — FR-REM-1).
+#
+# Governance notes:
+# - Every entry MUST carry opt_out.url + opt_out.instructions (manual opt-out
+#   guidance ships with each detection — BUILD-PLAN M1-4 acceptance).
+# - probe.enabled stays false until (a) the URL template + markers are
+#   verified against the live site and (b) counsel reviews the source row
+#   (PRD §11.4). Detection logic is fully tested against fixtures meanwhile.
+# - Opt-out URLs drift. verify_before_enable means exactly that.
+#
+# expected_processing values reflect the brokers' own stated/observed cycles;
+# the CCPA/DROP cycle is ~45 days (PRD FR-REM-2).
+
+version: "2026-06-10"
+brokers:
+  - id: whitepages
+    name: Whitepages
+    base_url: https://www.whitepages.com
+    family: whitepages
+    exposed_fields: [name, age, address, phone, relatives]
+    opt_out:
+      url: https://www.whitepages.com/suggest/optout
+      instructions: >
+        Search for your listing on whitepages.com, copy the listing URL, then
+        submit it at the opt-out page. Requires confirming via an automated
+        phone call to a number you control.
+      expected_processing: ~24-72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.whitepages.com/name/{name_dashed}/{city_dashed}"
+      found_markers: ["view full report", "lives in", "related to"]
+      notfound_markers: ["no results", "we could not find"]
+    verify_before_enable: true
+
+  - id: spokeo
+    name: Spokeo
+    base_url: https://www.spokeo.com
+    family: spokeo
+    exposed_fields: [name, age, address, phone, email, relatives, social_profiles]
+    opt_out:
+      url: https://www.spokeo.com/optout
+      instructions: >
+        Find your profile URL on spokeo.com, paste it into the opt-out form
+        with an email address, then click the confirmation link they send.
+      expected_processing: ~24-72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.spokeo.com/{name_dashed}/{city_dashed}"
+      found_markers: ["see results", "court records", "contact info"]
+      notfound_markers: ["no results found"]
+    verify_before_enable: true
+
+  - id: beenverified
+    name: BeenVerified
+    base_url: https://www.beenverified.com
+    family: beenverified
+    exposed_fields: [name, age, address, phone, email, relatives, criminal_records]
+    opt_out:
+      url: https://www.beenverified.com/app/optout/search
+      instructions: >
+        Search your name on the opt-out page, select your record, and confirm
+        via the email link. Covers the BeenVerified family of sites.
+      expected_processing: ~24 hours to a few days
+    probe:
+      enabled: false
+      url_template: "https://www.beenverified.com/people/{name_dashed}/{city_dashed}/"
+      found_markers: ["full background report", "age:"]
+      notfound_markers: ["no exact matches"]
+    verify_before_enable: true
+
+  - id: intelius
+    name: Intelius
+    base_url: https://www.intelius.com
+    family: peopleconnect
+    exposed_fields: [name, age, address, phone, relatives, employment]
+    opt_out:
+      url: https://suppression.peopleconnect.us/login
+      instructions: >
+        Use the PeopleConnect suppression center (covers Intelius, TruthFinder,
+        Instant Checkmate, US Search). Verify with an email address, locate
+        your record, and choose to suppress it.
+      expected_processing: ~72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.intelius.com/people-search/{name_dashed}/{city_dashed}"
+      found_markers: ["view details", "may be related to"]
+      notfound_markers: ["0 results"]
+    verify_before_enable: true
+
+  - id: truthfinder
+    name: TruthFinder
+    base_url: https://www.truthfinder.com
+    family: peopleconnect
+    exposed_fields: [name, age, address, phone, email, relatives, criminal_records]
+    opt_out:
+      url: https://suppression.peopleconnect.us/login
+      instructions: >
+        TruthFinder is part of PeopleConnect — use the shared suppression
+        center to find and suppress your record.
+      expected_processing: ~72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.truthfinder.com/people-search/{name_dashed}/"
+      found_markers: ["open report", "location history"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: instantcheckmate
+    name: Instant Checkmate
+    base_url: https://www.instantcheckmate.com
+    family: peopleconnect
+    exposed_fields: [name, age, address, phone, relatives, criminal_records]
+    opt_out:
+      url: https://suppression.peopleconnect.us/login
+      instructions: >
+        Part of PeopleConnect — use the shared suppression center.
+      expected_processing: ~72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.instantcheckmate.com/people/{name_dashed}/"
+      found_markers: ["view report"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: ussearch
+    name: US Search
+    base_url: https://www.ussearch.com
+    family: peopleconnect
+    exposed_fields: [name, age, address, phone, relatives]
+    opt_out:
+      url: https://suppression.peopleconnect.us/login
+      instructions: >
+        Part of PeopleConnect — use the shared suppression center.
+      expected_processing: ~72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.ussearch.com/people-search/{name_dashed}/{city_dashed}"
+      found_markers: ["view details"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: radaris
+    name: Radaris
+    base_url: https://radaris.com
+    family: radaris
+    exposed_fields: [name, age, address, phone, email, relatives, employment]
+    opt_out:
+      url: https://radaris.com/control/privacy
+      instructions: >
+        Search your profile on radaris.com, open "Control Information" /
+        privacy controls, and request removal; verification is via SMS code
+        or account. Alternatively email customer-service citing CCPA.
+      expected_processing: ~48 hours to 2 weeks
+    probe:
+      enabled: false
+      url_template: "https://radaris.com/p/{first}/{last}/{city_dashed}"
+      found_markers: ["background check", "current address"]
+      notfound_markers: ["not found"]
+    verify_before_enable: true
+
+  - id: mylife
+    name: MyLife
+    base_url: https://www.mylife.com
+    family: mylife
+    exposed_fields: [name, age, address, phone, relatives, reputation_score]
+    opt_out:
+      url: https://www.mylife.com/ccpa/index.pubview
+      instructions: >
+        Submit a CCPA deletion request via their privacy form, or email
+        privacy@mylife.com with your listing URL and request removal.
+        Persistent re-listing has been reported — re-check after 90 days.
+      expected_processing: days to weeks; re-check
+    probe:
+      enabled: false
+      url_template: "https://www.mylife.com/{name_dashed}/"
+      found_markers: ["reputation score", "background report"]
+      notfound_markers: ["page not found"]
+    verify_before_enable: true
+
+  - id: peoplefinders
+    name: PeopleFinders
+    base_url: https://www.peoplefinders.com
+    family: peoplefinders
+    exposed_fields: [name, age, address, phone, relatives]
+    opt_out:
+      url: https://www.peoplefinders.com/opt-out
+      instructions: >
+        Search your listing, select it, and confirm removal via the email
+        link. Covers PeopleFinders properties.
+      expected_processing: ~48 hours
+    probe:
+      enabled: false
+      url_template: "https://www.peoplefinders.com/people/{name_dashed}/{city_dashed}"
+      found_markers: ["view full profile"]
+      notfound_markers: ["no records found"]
+    verify_before_enable: true
+
+  - id: truepeoplesearch
+    name: TruePeopleSearch
+    base_url: https://www.truepeoplesearch.com
+    family: truepeoplesearch
+    exposed_fields: [name, age, address, phone, email, relatives, associates]
+    opt_out:
+      url: https://www.truepeoplesearch.com/removal
+      instructions: >
+        Use the removal page, find your record, and click "Remove This Record".
+        No account needed; confirmation is immediate on-site.
+      expected_processing: ~24-48 hours
+    probe:
+      enabled: false
+      url_template: "https://www.truepeoplesearch.com/results?name={name_dashed}&citystatezip={city_dashed}"
+      found_markers: ["view all details", "current address"]
+      notfound_markers: ["no results found"]
+    verify_before_enable: true
+
+  - id: fastpeoplesearch
+    name: FastPeopleSearch
+    base_url: https://www.fastpeoplesearch.com
+    family: truepeoplesearch
+    exposed_fields: [name, age, address, phone, email, relatives]
+    opt_out:
+      url: https://www.fastpeoplesearch.com/removal
+      instructions: >
+        Use the removal page; search your record and confirm removal.
+        Sister site of TruePeopleSearch — remove from both.
+      expected_processing: ~24-48 hours
+    probe:
+      enabled: false
+      url_template: "https://www.fastpeoplesearch.com/name/{name_dashed}_{city_dashed}"
+      found_markers: ["view free details"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: peekyou
+    name: PeekYou
+    base_url: https://www.peekyou.com
+    family: peekyou
+    exposed_fields: [name, username, social_profiles, address_city]
+    opt_out:
+      url: https://www.peekyou.com/about/contact/optout/
+      instructions: >
+        Locate your profile's unique ID in its URL, submit it in the opt-out
+        form, and confirm via email.
+      expected_processing: up to 10 business days
+    probe:
+      enabled: false
+      url_template: "https://www.peekyou.com/{first}_{last}"
+      found_markers: ["social profiles", "web results"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: thatsthem
+    name: ThatsThem
+    base_url: https://thatsthem.com
+    family: thatsthem
+    exposed_fields: [name, address, phone, email, ip_addresses]
+    opt_out:
+      url: https://thatsthem.com/optout
+      instructions: >
+        Submit the opt-out form with the listing details; confirmation by email.
+      expected_processing: ~24-72 hours
+    probe:
+      enabled: false
+      url_template: "https://thatsthem.com/name/{name_dashed}/{city_dashed}"
+      found_markers: ["lives at", "phone numbers"]
+      notfound_markers: ["no results found"]
+    verify_before_enable: true
+
+  - id: familytreenow
+    name: FamilyTreeNow
+    base_url: https://www.familytreenow.com
+    family: familytreenow
+    exposed_fields: [name, age, address, relatives, associates]
+    opt_out:
+      url: https://www.familytreenow.com/optout
+      instructions: >
+        Use the opt-out flow to search and flag your record; no email needed.
+        Notorious for exposing relatives — check family members too.
+      expected_processing: ~48 hours
+    probe:
+      enabled: false
+      url_template: "https://www.familytreenow.com/search/genealogy/results?first={first}&last={last}"
+      found_markers: ["possible relatives"]
+      notfound_markers: ["no records"]
+    verify_before_enable: true
+
+  - id: nuwber
+    name: Nuwber
+    base_url: https://nuwber.com
+    family: nuwber
+    exposed_fields: [name, age, address, phone, email]
+    opt_out:
+      url: https://nuwber.com/removal/link
+      instructions: >
+        Paste your listing URL into the removal page and confirm via email.
+      expected_processing: ~24-48 hours
+    probe:
+      enabled: false
+      url_template: "https://nuwber.com/search?name={name_dashed}"
+      found_markers: ["view profile"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: clustrmaps
+    name: ClustrMaps
+    base_url: https://clustrmaps.com
+    family: clustrmaps
+    exposed_fields: [name, address, phone, neighbors]
+    opt_out:
+      url: https://clustrmaps.com/bl/opt-out
+      instructions: >
+        Submit your listing URL via the opt-out form; confirm by email.
+      expected_processing: ~48 hours
+    probe:
+      enabled: false
+      url_template: "https://clustrmaps.com/persons/{first}-{last}"
+      found_markers: ["resides at"]
+      notfound_markers: ["not found"]
+    verify_before_enable: true
+
+  - id: usphonebook
+    name: USPhoneBook
+    base_url: https://www.usphonebook.com
+    family: usphonebook
+    exposed_fields: [name, address, phone, relatives]
+    opt_out:
+      url: https://www.usphonebook.com/opt-out
+      instructions: >
+        Search your listing, copy its URL, submit it on the opt-out page and
+        confirm via the emailed link.
+      expected_processing: ~24-72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.usphonebook.com/{name_dashed}/{city_dashed}"
+      found_markers: ["current address"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: searchpeoplefree
+    name: SearchPeopleFree
+    base_url: https://www.searchpeoplefree.com
+    family: searchpeoplefree
+    exposed_fields: [name, age, address, phone, email]
+    opt_out:
+      url: https://www.searchpeoplefree.com/opt-out
+      instructions: >
+        Locate your listing and submit its URL via the opt-out form.
+      expected_processing: ~48 hours
+    probe:
+      enabled: false
+      url_template: "https://www.searchpeoplefree.com/find/{name_dashed}/{city_dashed}"
+      found_markers: ["lives in"]
+      notfound_markers: ["no results found"]
+    verify_before_enable: true
+
+  - id: peoplelooker
+    name: PeopleLooker
+    base_url: https://www.peoplelooker.com
+    family: beenverified
+    exposed_fields: [name, age, address, phone, email, relatives]
+    opt_out:
+      url: https://www.beenverified.com/app/optout/search
+      instructions: >
+        PeopleLooker runs on BeenVerified data — opting out there covers it.
+      expected_processing: ~24 hours to a few days
+    probe:
+      enabled: false
+      url_template: "https://www.peoplelooker.com/people/{name_dashed}/{city_dashed}/"
+      found_markers: ["view report"]
+      notfound_markers: ["no matches"]
+    verify_before_enable: true
+
+  - id: checkpeople
+    name: CheckPeople
+    base_url: https://checkpeople.com
+    family: checkpeople
+    exposed_fields: [name, age, address, phone, relatives, criminal_records]
+    opt_out:
+      url: https://checkpeople.com/opt-out
+      instructions: >
+        Submit your name/state via the opt-out form and confirm by email.
+      expected_processing: up to 7 days
+    probe:
+      enabled: false
+      url_template: "https://checkpeople.com/people/{name_dashed}/{city_dashed}"
+      found_markers: ["open full report"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: cyberbackgroundchecks
+    name: CyberBackgroundChecks
+    base_url: https://www.cyberbackgroundchecks.com
+    family: cyberbackgroundchecks
+    exposed_fields: [name, age, address, phone, email, relatives]
+    opt_out:
+      url: https://www.cyberbackgroundchecks.com/removal
+      instructions: >
+        Find your record, copy the record URL, and submit it via the removal
+        page; confirm via email.
+      expected_processing: ~48 hours
+    probe:
+      enabled: false
+      url_template: "https://www.cyberbackgroundchecks.com/people/{name_dashed}/{city_dashed}"
+      found_markers: ["view details"]
+      notfound_markers: ["no records found"]
+    verify_before_enable: true
+
+  - id: smartbackgroundchecks
+    name: SmartBackgroundChecks
+    base_url: https://www.smartbackgroundchecks.com
+    family: truepeoplesearch
+    exposed_fields: [name, age, address, phone, email, relatives]
+    opt_out:
+      url: https://www.smartbackgroundchecks.com/optout
+      instructions: >
+        Search your record and use the on-page removal flow; confirm by email.
+      expected_processing: ~24-48 hours
+    probe:
+      enabled: false
+      url_template: "https://www.smartbackgroundchecks.com/people/{name_dashed}/{city_dashed}"
+      found_markers: ["smart report"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
+
+  - id: publicdatausa
+    name: PublicDataUSA
+    base_url: https://publicdatausa.com
+    family: publicdatausa
+    exposed_fields: [name, age, address, phone, voter_records]
+    opt_out:
+      url: https://publicdatausa.com/remove.php
+      instructions: >
+        Submit the removal form with your listing URL.
+      expected_processing: ~1 week
+    probe:
+      enabled: false
+      url_template: "https://publicdatausa.com/search.php?name={name_dashed}"
+      found_markers: ["voter registration"]
+      notfound_markers: ["no records"]
+    verify_before_enable: true
+
+  - id: anywho
+    name: AnyWho
+    base_url: https://www.anywho.com
+    family: peopleconnect
+    exposed_fields: [name, address, phone]
+    opt_out:
+      url: https://suppression.peopleconnect.us/login
+      instructions: >
+        AnyWho draws from the Intelius/PeopleConnect graph — use the shared
+        suppression center.
+      expected_processing: ~72 hours
+    probe:
+      enabled: false
+      url_template: "https://www.anywho.com/people/{name_dashed}/{city_dashed}"
+      found_markers: ["view full details"]
+      notfound_markers: ["no results"]
+    verify_before_enable: true
