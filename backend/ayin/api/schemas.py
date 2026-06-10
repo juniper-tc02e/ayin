@@ -116,6 +116,12 @@ class FindingOut(BaseModel):
     identifier_id: uuid.UUID | None
     state: str
     step_up_required: bool = False
+    # Resolution (M2-1/M2-2)
+    match_status: str = "possible"
+    match_confidence: float | None = None
+    corroboration_count: int = 1
+    merged_sources: list = []
+    conflicts: list = []
 
 
 class FindingsPage(BaseModel):

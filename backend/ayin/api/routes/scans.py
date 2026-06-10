@@ -202,6 +202,11 @@ def get_findings(
                     identifier_id=f.identifier_id,
                     state=f.state.value,
                     step_up_required=True,
+                    match_status=f.match_status.value,
+                    match_confidence=f.match_confidence,
+                    corroboration_count=f.corroboration_count,
+                    merged_sources=[],  # source list may leak breach names — locked too
+                    conflicts=[],
                 )
             )
         else:
@@ -221,6 +226,11 @@ def get_findings(
                     identifier_id=f.identifier_id,
                     state=f.state.value,
                     step_up_required=False,
+                    match_status=f.match_status.value,
+                    match_confidence=f.match_confidence,
+                    corroboration_count=f.corroboration_count,
+                    merged_sources=f.merged_sources or [],
+                    conflicts=(f.resolution or {}).get("conflicts", []),
                 )
             )
 

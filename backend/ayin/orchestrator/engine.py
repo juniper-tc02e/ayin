@@ -345,7 +345,9 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
 
     actor = system_actor("orchestrator")
     _transition(db, scan, ScanStatus.RESOLVING, actor=actor, event="scan.resolving")
-    # M2-1/M2-2 hook: entity resolution + dedupe/classify run here.
+    from ayin.resolution import resolve_scan  # noqa: PLC0415 — avoid import cycle
+
+    resolve_scan(db, scan)
     _transition(db, scan, ScanStatus.SCORING, actor=actor, event="scan.scoring")
     # M2-3 hook: Exposure Score v0 computes here.
     failed = [j.connector_id for j in jobs if j.status == JobStatus.FAILED]
