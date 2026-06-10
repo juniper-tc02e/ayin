@@ -91,3 +91,14 @@ def _truncate_all(engine) -> None:
         if tables:
             joined = ", ".join(f'"{t}"' for t in tables)
             conn.execute(text(f"TRUNCATE {joined} RESTART IDENTITY CASCADE"))
+        # Re-seed config rows the migrations install (truncate wiped them),
+        # so every test starts from the canonical seeded state.
+        conn.execute(
+            text(
+                "INSERT INTO rate_limit_policies "
+                "(id, scope, scans_per_day, scan_burst, burst_window_minutes) "
+                "VALUES (gen_random_uuid(), 'free', :spd, :burst, 10)"
+            ),
+            {"spd": get_settings().rate_limit_scans_per_day,
+             "burst": get_settings().rate_limit_burst},
+        )

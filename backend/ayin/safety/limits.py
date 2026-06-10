@@ -38,20 +38,21 @@ class Policy:
 
 def get_policy(db: Session, plan: str, settings: Settings) -> Policy:
     """DB row for the plan if present (live-changeable), else env defaults."""
-    try:
-        from ayin.models.ratelimit import RateLimitPolicy  # noqa: PLC0415
+    from ayin.models.ratelimit import RateLimitPolicy  # noqa: PLC0415
 
-        row = db.execute(
-            select(RateLimitPolicy).where(RateLimitPolicy.scope == plan)
+    row = db.execute(
+        select(RateLimitPolicy).where(RateLimitPolicy.scope == plan)
+    ).scalar_one_or_none()
+    if row is None and plan != "free":
+        row = db.execute(  # unknown plan → free-plan caps, never uncapped
+            select(RateLimitPolicy).where(RateLimitPolicy.scope == "free")
         ).scalar_one_or_none()
-        if row is not None:
-            return Policy(
-                scans_per_day=row.scans_per_day,
-                scan_burst=row.scan_burst,
-                burst_window_minutes=row.burst_window_minutes,
-            )
-    except ImportError:  # table ships with M1-6; env fallback until then
-        pass
+    if row is not None:
+        return Policy(
+            scans_per_day=row.scans_per_day,
+            scan_burst=row.scan_burst,
+            burst_window_minutes=row.burst_window_minutes,
+        )
     return Policy(
         scans_per_day=settings.rate_limit_scans_per_day,
         scan_burst=settings.rate_limit_burst,
@@ -106,14 +107,12 @@ def check_scan_allowed(
 def _maybe_signal_hammering(db: Session, user_id: uuid.UUID) -> None:
     """≥N rate-limit refusals within the window → velocity AbuseSignal
     (FR-TS-2 telemetry; review tooling lands in M3)."""
-    from ayin.models import AuditRecord  # late import to avoid cycle at module load
-
     window_start = datetime.now(timezone.utc) - timedelta(minutes=_HAMMERING_WINDOW_MINUTES)
     refusals = db.execute(
-        select(func.count(AuditRecord.id)).where(
-            AuditRecord.event_type == "scan.refused",
-            AuditRecord.actor_id == str(user_id),
-            AuditRecord.occurred_at >= window_start,
+        select(func.count(Scan.id)).where(
+            Scan.requester_user_id == user_id,
+            Scan.error.like("rate_limited%"),
+            Scan.created_at >= window_start,
         )
     ).scalar_one()
     if refusals < _HAMMERING_THRESHOLD:
