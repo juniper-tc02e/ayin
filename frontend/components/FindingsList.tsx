@@ -19,7 +19,13 @@ const SENSITIVITY_COLOR: Record<Finding["sensitivity"], string> = {
   low: "var(--text-dim)",
 };
 
-export default function FindingsList({ scanId }: { scanId: string }) {
+export default function FindingsList({
+  scanId,
+  onReviewed,
+}: {
+  scanId: string;
+  onReviewed?: () => void;
+}) {
   const [page, setPage] = useState<FindingsPage | null>(null);
   const [stepUpToken, setStepUpToken] = useState<string | null>(null);
   const [showStepUp, setShowStepUp] = useState(false);
@@ -40,6 +46,16 @@ export default function FindingsList({ scanId }: { scanId: string }) {
     load(stepUpToken);
   }, [load, stepUpToken]);
 
+  async function review(findingId: string, action: "confirm" | "reject") {
+    try {
+      await api(`/findings/${findingId}/${action}`, { method: "POST" });
+      load(stepUpToken);
+      onReviewed?.();
+    } catch {
+      /* surface-level errors are non-fatal here */
+    }
+  }
+
   if (!page) return <p className="dim">Loading findings…</p>;
   if (page.findings.length === 0)
     return (
@@ -51,8 +67,13 @@ export default function FindingsList({ scanId }: { scanId: string }) {
       </div>
     );
 
+  const possible = page.findings.filter((f) => f.match_status === "possible");
+  const rejected = page.findings.filter((f) => f.match_status === "rejected");
+  const counted = page.findings.filter(
+    (f) => f.match_status === "auto_matched" || f.match_status === "confirmed"
+  );
   const groups = new Map<string, Finding[]>();
-  for (const f of page.findings) {
+  for (const f of counted) {
     groups.set(f.category, [...(groups.get(f.category) ?? []), f]);
   }
 
@@ -86,6 +107,7 @@ export default function FindingsList({ scanId }: { scanId: string }) {
           {findings.map((f) => (
             <div
               key={f.id}
+              id={`finding-${f.id}`}
               style={{ borderTop: "1px solid var(--border)", padding: "0.6rem 0" }}
             >
               <div style={{ display: "flex", gap: "0.5rem", alignItems: "baseline" }}>
@@ -107,10 +129,20 @@ export default function FindingsList({ scanId }: { scanId: string }) {
                         </a>
                       </>
                     )}
-                    {Boolean(f.payload.namesake_risk) && (
-                      <> · <span title="Matched by name — could be a namesake. Confirm/reject coming in M2.">may be a namesake</span></>
+                    {f.corroboration_count > 1 && (
+                      <> · seen by {f.corroboration_count} sources</>
+                    )}
+                    {f.match_status === "confirmed" && (
+                      <> · <span style={{ color: "var(--ok)" }}>confirmed by you</span></>
                     )}
                   </p>
+                  {f.conflicts.length > 0 && (
+                    <p style={{ margin: "0.3rem 0 0", fontSize: "0.8rem", color: "var(--warn)" }}>
+                      ⚠ Sources disagree on{" "}
+                      {f.conflicts.map((c) => c.field).join(", ")} — shown as reported, not
+                      merged.
+                    </p>
+                  )}
                   {f.category === "broker" && f.payload.removable === true && (
                     <div style={{ marginTop: "0.4rem" }}>
                       <button
@@ -163,6 +195,54 @@ export default function FindingsList({ scanId }: { scanId: string }) {
         </div>
       ))}
 
+      {possible.length > 0 && (
+        <div className="card" style={{ borderColor: "var(--accent)" }}>
+          <h3 style={{ marginTop: 0, fontSize: "0.95rem" }}>
+            Possible matches — is this you? <span className="dim">({possible.length})</span>
+          </h3>
+          <p className="dim" style={{ marginTop: 0, fontSize: "0.85rem" }}>
+            These were found via your name or username, which others can share. They
+            don&apos;t count toward your score unless you confirm them.
+          </p>
+          {possible.map((f) => (
+            <div
+              key={f.id}
+              id={`finding-${f.id}`}
+              style={{ borderTop: "1px solid var(--border)", padding: "0.6rem 0" }}
+            >
+              <p style={{ margin: 0 }}>{f.summary}</p>
+              <p className="dim" style={{ margin: "0.2rem 0 0.4rem", fontSize: "0.8rem" }}>
+                {f.source_name} · match confidence{" "}
+                {f.match_confidence != null ? `${Math.round(f.match_confidence * 100)}%` : "—"}
+                {f.source_url && (
+                  <>
+                    {" · "}
+                    <a href={f.source_url} target="_blank" rel="noreferrer noopener">
+                      view source ↗
+                    </a>
+                  </>
+                )}
+              </p>
+              <span style={{ display: "flex", gap: "0.5rem" }}>
+                <button style={reviewButton("var(--ok)")} onClick={() => review(f.id, "confirm")}>
+                  Yes, that&apos;s me
+                </button>
+                <button style={reviewButton("var(--down)")} onClick={() => review(f.id, "reject")}>
+                  Not me
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {rejected.length > 0 && (
+        <p className="dim" style={{ fontSize: "0.8rem" }}>
+          {rejected.length} finding{rejected.length > 1 ? "s" : ""} marked &quot;not me&quot; —
+          excluded from your score.
+        </p>
+      )}
+
       {showStepUp && (
         <StepUpModal
           onToken={(t) => setStepUpToken(t)}
@@ -171,4 +251,16 @@ export default function FindingsList({ scanId }: { scanId: string }) {
       )}
     </div>
   );
+}
+
+function reviewButton(color: string): React.CSSProperties {
+  return {
+    padding: "0.3rem 0.8rem",
+    background: "transparent",
+    color,
+    border: "1px solid var(--border)",
+    borderRadius: 6,
+    cursor: "pointer",
+    fontSize: "0.85rem",
+  };
 }

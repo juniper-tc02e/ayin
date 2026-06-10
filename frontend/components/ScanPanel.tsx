@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, Scan } from "@/lib/api";
 import FindingsList from "@/components/FindingsList";
+import ScorePanel from "@/components/ScorePanel";
 
 const STATUS_LABEL: Record<string, string> = {
   queued: "Queued",
@@ -20,6 +21,7 @@ export default function ScanPanel() {
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reviewVersion, setReviewVersion] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(() => {
@@ -128,7 +130,11 @@ export default function ScanPanel() {
           )}
           {selectedScan.status === "done" && (
             <div style={{ marginTop: "1rem" }}>
-              <FindingsList scanId={selectedScan.id} />
+              <ScorePanel scanId={selectedScan.id} refreshKey={reviewVersion} />
+              <FindingsList
+                scanId={selectedScan.id}
+                onReviewed={() => setReviewVersion((v) => v + 1)}
+              />
             </div>
           )}
         </div>

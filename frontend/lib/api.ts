@@ -77,12 +77,34 @@ export type Finding = {
   identifier_id: string | null;
   state: string;
   step_up_required: boolean;
+  match_status: "auto_matched" | "possible" | "confirmed" | "rejected";
+  match_confidence: number | null;
+  corroboration_count: number;
+  merged_sources: { source: string; source_name: string }[];
+  conflicts: { field: string; values: { value: string; source: string }[] }[];
 };
 
 export type FindingsPage = {
   scan_id: string;
   findings: Finding[];
   locked_credential_findings: number;
+};
+
+export type ScoreContributor = {
+  finding_id: string;
+  category: string;
+  points: number;
+  reason: string;
+};
+
+export type ScoreData = {
+  scan_id: string;
+  overall: number;
+  subscores: Record<string, number>;
+  rubric_version: string;
+  computed_at: string;
+  verdict: string;
+  contributing: ScoreContributor[];
 };
 
 /** JSON fetch with session cookie included; throws ApiError on non-2xx. */
