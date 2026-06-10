@@ -62,7 +62,7 @@ See `CLAUDE.md` and PRD §7, §19, §20 for the full trust architecture.
 
 ## Status
 
-Pre-MVP — **milestone M0 (Foundations) complete**: dev stack, core data model + migrations, email/password auth with identifier verification, versioned ToS gate, immutable audit log, connector contract + FakeConnector. Next: M1 (Discovery). Building toward the §13.7 go/no-go.
+Pre-MVP — **milestones M0 (Foundations) and M1 (Discovery) complete**: resumable scan orchestrator with safety gates in the critical path, three real connectors behind the uniform contract (breach/HIBP-class, public-web search, data-broker detection with a 25-broker opt-out registry), encrypted PII vault with crypto-shred, live-tunable rate limits, and the scan UI (launch → progress → findings with step-up unlock). Real connectors are env-key-gated (`BREACH_API_KEY`, `SEARCH_API_KEY`) and production-locked behind governance counsel sign-off; dev runs ship a clearly-labeled FakeConnector so the loop works with zero keys. Next: M2 (Resolution + scoring). Building toward the §13.7 go/no-go.
 
 ---
 

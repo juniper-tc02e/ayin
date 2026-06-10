@@ -37,17 +37,17 @@ Goal: an empty but trustworthy skeleton — a request can authenticate, accept t
 
 Goal: three real connectors produce sourced findings, driven by a queue-based orchestrator, with sensitive data in the vault.
 
-- [ ] **M1-1 — Scan orchestrator (job state machine).** States: `queued → gated → running → resolving → scoring → done | failed | held`; Celery tasks per connector; partial results persisted; resumable/retryable. (PRD §10.1, FR-SCAN-1)
+- [x] **M1-1 — Scan orchestrator (job state machine).** States: `queued → gated → running → resolving → scoring → done | failed | held`; Celery tasks per connector; partial results persisted; resumable/retryable. (PRD §10.1, FR-SCAN-1)
   - *Accept:* a scan fans out to connectors, survives a worker restart mid-run, and records status transitions.
-- [ ] **M1-2 — Breach/credential connector.** Integrate one HIBP-class breach API; return breach name, date, data classes, exploitability. **Never** store or display full plaintext secrets — exposure status / partial only. (FR-DISC-1)
+- [x] **M1-2 — Breach/credential connector.** Integrate one HIBP-class breach API; return breach name, date, data classes, exploitability. **Never** store or display full plaintext secrets — exposure status / partial only. (FR-DISC-1)
   - *Accept:* verified email/phone/username returns breach findings with source + confidence; no plaintext credential is ever persisted or rendered.
-- [ ] **M1-3 — Public-web/social connector.** Compliant search API / public endpoints; capture URL, platform, snippet, captured-at; respect robots/ToS and the "publicly available" definition. (FR-DISC-2, PRD §11.1)
+- [x] **M1-3 — Public-web/social connector.** Compliant search API / public endpoints; capture URL, platform, snippet, captured-at; respect robots/ToS and the "publicly available" definition. (FR-DISC-2, PRD §11.1)
   - *Accept:* returns public profile/mention findings for seeds; nothing behind a login; each finding cites its URL + capture time.
-- [ ] **M1-4 — Data-broker detection connector.** Detect presence on a hand-curated set of ~20–50 high-impact US brokers; record site, listing URL, exposed fields; flag as removable. **Detect only — no removal in MVP.** (FR-DISC-3, PRD §13.6)
+- [x] **M1-4 — Data-broker detection connector.** Detect presence on a hand-curated set of ~20–50 high-impact US brokers; record site, listing URL, exposed fields; flag as removable. **Detect only — no removal in MVP.** (FR-DISC-3, PRD §13.6)
   - *Accept:* detects listings across the seed set; each flagged `removable` with manual opt-out instructions attached.
-- [ ] **M1-5 — PII vault.** Encrypted, access-controlled store for sensitive findings/artifacts; per-subject keys; retention timers; crypto-shred. All reads go through an audited accessor. (PRD §10.7)
+- [x] **M1-5 — PII vault.** Encrypted, access-controlled store for sensitive findings/artifacts; per-subject keys; retention timers; crypto-shred. All reads go through an audited accessor. (PRD §10.7)
   - *Accept:* sensitive fields are encrypted at rest; reading them writes an audit record; a delete crypto-shreds the subject's keys.
-- [ ] **M1-6 — Rate/volume enforcement.** Per-account/per-tier caps on scan frequency and burst velocity; clear "you're limited" messaging; limits server-configurable. (FR-SCAN-3)
+- [x] **M1-6 — Rate/volume enforcement.** Per-account/per-tier caps on scan frequency and burst velocity; clear "you're limited" messaging; limits server-configurable. (FR-SCAN-3)
   - *Accept:* exceeding the cap blocks with a clear message; limits change without a deploy.
 
 ## M2 — Resolution + scoring (PRD weeks 5–7)

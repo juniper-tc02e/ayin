@@ -121,7 +121,9 @@ def start_scan(
         for job in jobs:
             run_job.delay(str(job.id))
     db.expire_all()
-    return _scan_out(db, db.get(Scan, scan.id))
+    fresh = db.get(Scan, scan.id)
+    assert fresh is not None  # just created in this request
+    return _scan_out(db, fresh)
 
 
 @router.get("", response_model=list[ScanOut])

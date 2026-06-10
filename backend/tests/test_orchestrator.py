@@ -192,7 +192,8 @@ def test_full_pipeline_inline(db, registry, vault, settings):
                      "scan.completed"]:
         assert expected in events, expected
     # status transitions recorded in order
-    assert events.index("scan.gated") < events.index("scan.started") < events.index("scan.completed")
+    order = [events.index(e) for e in ("scan.gated", "scan.started", "scan.completed")]
+    assert order == sorted(order)
 
 
 def test_gate_refuses_without_verified_anchor(db, registry, vault, settings):

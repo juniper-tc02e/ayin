@@ -50,7 +50,7 @@ JOB_MAX_ATTEMPTS = 3
 
 
 class GateDecision(str, Enum):
-    PASS = "pass"
+    PASS = "pass"  # noqa: S105 — gate decision, not a credential
     REFUSE = "refuse"
     HOLD = "hold"
 
@@ -234,6 +234,8 @@ def run_connector_job(
         return job.status if job else JobStatus.FAILED
 
     scan = db.get(Scan, job.scan_id)
+    if scan is None:  # FK guarantees this; satisfy the type system + fail loudly
+        raise RuntimeError(f"connector job {job.id} has no scan {job.scan_id}")
     job.status = JobStatus.RUNNING
     job.attempts += 1
     job.started_at = datetime.now(timezone.utc)

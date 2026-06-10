@@ -13,7 +13,7 @@ import json
 import httpx
 import pytest
 
-from ayin.connectors import ConnectorAuthError, ConnectorTransientError, SeedQuery
+from ayin.connectors import ConnectorAuthError, SeedQuery
 from ayin.connectors.breach import BreachConnector, _exploitability, _sensitivity
 from ayin.models.enums import FindingCategory, IdentifierKind, Sensitivity
 
@@ -42,7 +42,6 @@ FAKE_BREACHES = [
 
 
 def _connector(handler, key="fake-test-key-123"):
-    import ayin.connectors.breach as mod
 
     transport = httpx.MockTransport(handler)
     c = BreachConnector(transport=transport)

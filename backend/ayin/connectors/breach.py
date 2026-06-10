@@ -50,6 +50,16 @@ def _sensitivity(data_classes: list[str]) -> Sensitivity:
     return Sensitivity.MEDIUM
 
 
+def _summary(title: str, breach_date: str | None, data_classes: list[str]) -> str:
+    dated = f" ({breach_date})" if breach_date else ""
+    pw = " including passwords" if _sensitivity(data_classes) == Sensitivity.CRITICAL else ""
+    return (
+        f"This email appears in the '{title}' breach{dated}, which exposed "
+        f"{len(data_classes)} data class(es){pw}. "
+        "Exposure status only — no secret is stored or shown."
+    )
+
+
 def _exploitability(data_classes: list[str], breach_date: str | None) -> float:
     lowered = {c.lower() for c in data_classes}
     score = 0.3
@@ -145,13 +155,7 @@ class BreachConnector(Connector):
                     captured_at=r.fetched_at,
                     confidence=0.95 if b.get("IsVerified", False) else 0.75,
                     exploitability=_exploitability(data_classes, breach_date),
-                    summary=(
-                        f"This email appears in the '{title}' breach"
-                        f"{f' ({breach_date})' if breach_date else ''}, which exposed "
-                        f"{len(data_classes)} data class(es) "
-                        f"{'including passwords' if _sensitivity(data_classes) == Sensitivity.CRITICAL else ''}"
-                        .strip() + ". Exposure status only — no secret is stored or shown."
-                    ),
+                    summary=_summary(title, breach_date, data_classes),
                     payload={
                         "breach_name": name,
                         "title": title,
