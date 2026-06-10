@@ -1,0 +1,84 @@
+# ─────────────────────────────────────────────────────────────
+# SECURITY — never commit secrets, PII, or real scan data.
+# Ayin handles the most sensitive query a person can make.
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+secrets/
+**/secrets/
+*.secret
+
+# Real scan data, PII, breach/credential samples, vault contents.
+# Fixtures must use clearly fake data only — keep them in tests/fixtures/.
+/data/
+/pii/
+/vault/data/
+/scan-artifacts/
+*.pii
+*.scan
+fixtures.local/
+**/*real*.json
+
+# ─────────────────────────────────────────────────────────────
+# Python (backend / workers)
+# ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.python-version
+
+# ─────────────────────────────────────────────────────────────
+# Node / Next.js (frontend)
+# ─────────────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─────────────────────────────────────────────────────────────
+# Infra / local services
+# ─────────────────────────────────────────────────────────────
+*.tfstate
+*.tfstate.*
+.terraform/
+docker-compose.override.yml
+/minio-data/
+/postgres-data/
+/redis-data/
+
+# ─────────────────────────────────────────────────────────────
+# Editor / OS
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# ─────────────────────────────────────────────────────────────
+# Claude Code — keep shared project config, ignore local/personal
+# ─────────────────────────────────────────────────────────────
+.claude/settings.local.json
