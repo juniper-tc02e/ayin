@@ -1,0 +1,39 @@
+"""Source connectors (FR-DISC-4).
+
+Every data source sits behind the uniform contract in ``base``; business
+logic NEVER calls a source API directly (CLAUDE.md). Add/version/disable a
+source without touching the core.
+"""
+
+from ayin.connectors.base import (
+    AccessMethod,
+    Connector,
+    ConnectorAuthError,
+    ConnectorContractViolation,
+    ConnectorPermanentError,
+    ConnectorRateLimited,
+    ConnectorRun,
+    ConnectorTransientError,
+    NormalizedFinding,
+    RawResult,
+    SeedQuery,
+    SourceGovernance,
+)
+from ayin.connectors.registry import ConnectorRegistry, registry
+
+__all__ = [
+    "AccessMethod",
+    "Connector",
+    "ConnectorAuthError",
+    "ConnectorContractViolation",
+    "ConnectorPermanentError",
+    "ConnectorRateLimited",
+    "ConnectorRun",
+    "ConnectorTransientError",
+    "NormalizedFinding",
+    "RawResult",
+    "SeedQuery",
+    "SourceGovernance",
+    "ConnectorRegistry",
+    "registry",
+]
