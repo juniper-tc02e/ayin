@@ -49,9 +49,23 @@ class Settings(BaseSettings):
     # ── ToS / AUP gate (FR-AUTH-2) ───────────────────────────
     tos_current_version: str = "2026-06-10"
 
-    # ── Safety / limits (FR-SCAN-3; server-configurable) ─────
+    # ── Safety / limits (FR-SCAN-3; env values are fallback/seed —
+    #    live values come from the rate_limit_policies table, M1-6) ──
     rate_limit_scans_per_day: int = 5
     rate_limit_burst: int = 2
+
+    # ── Scan orchestration (M1-1) ────────────────────────────
+    # "inline" runs the pipeline synchronously (dev/test);
+    # "celery" enqueues to workers (compose/production).
+    scan_execution: str = "inline"
+    job_stale_after_seconds: int = 300
+
+    # ── Connectors (M1-2..4; keys empty = connector disabled) ─
+    breach_api_key: str = ""
+    breach_api_base_url: str = "https://haveibeenpwned.com/api/v3"
+    search_api_key: str = ""
+    search_api_base_url: str = "https://api.search.brave.com/res/v1"
+    broker_registry_path: str = "ayin/connectors/broker/registry.yaml"
 
     @property
     def sqlalchemy_url(self) -> str:

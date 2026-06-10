@@ -92,13 +92,19 @@ class SourceGovernance(BaseModel):
 
 
 class SeedQuery(BaseModel):
-    """What a connector gets: one seed identifier — never a whole profile."""
+    """What a connector gets: one seed identifier — never a whole profile.
+
+    ``context`` carries the minimum auxiliary detail some sources need to
+    query meaningfully (e.g. {"city": ...} alongside a full_name for broker
+    probes). It is never a second searchable identity on its own.
+    """
 
     model_config = ConfigDict(frozen=True)
 
     kind: IdentifierKind
     value: str  # normalized form
     identifier_id: uuid.UUID | None = None  # provenance for the visibility gate
+    context: dict[str, str] = Field(default_factory=dict)
 
 
 class RawResult(BaseModel):

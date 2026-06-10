@@ -68,3 +68,57 @@ class VerifyIdentifierEmailIn(BaseModel):
 
 class OtpIn(BaseModel):
     code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+# ── Scans (M1-1) ──────────────────────────────────────────────
+
+
+class JobOut(BaseModel):
+    connector_id: str
+    status: str
+    findings_count: int
+    attempts: int
+    error: str | None
+
+
+class ScanProgress(BaseModel):
+    jobs_total: int
+    jobs_done: int
+    jobs_failed: int
+
+
+class ScanOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    tier: str
+    purpose: str
+    error: str | None
+    source_set: list
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    progress: ScanProgress
+    jobs: list[JobOut]
+
+
+class FindingOut(BaseModel):
+    id: uuid.UUID
+    category: str
+    sensitivity: str
+    source: str
+    source_name: str
+    source_url: str | None
+    captured_at: datetime
+    confidence: float
+    exploitability: float | None
+    summary: str
+    payload: dict
+    identifier_id: uuid.UUID | None
+    state: str
+    step_up_required: bool = False
+
+
+class FindingsPage(BaseModel):
+    scan_id: uuid.UUID
+    findings: list[FindingOut]
+    locked_credential_findings: int = 0

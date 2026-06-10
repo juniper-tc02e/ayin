@@ -44,6 +44,15 @@ class ScanStatus(str, enum.Enum):
     HELD = "held"  # safety hold for human review (FR-SCAN-5)
 
 
+class JobStatus(str, enum.Enum):
+    """Per-connector unit of work inside a scan (M1-1)."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+
+
 class FindingCategory(str, enum.Enum):
     CREDENTIAL = "credential"  # breach / leaked-credential exposure
     BROKER = "broker"  # data-broker / people-search listing
