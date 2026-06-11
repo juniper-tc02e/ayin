@@ -113,6 +113,12 @@ Goal: make the funnel measurable and the findings trustworthy.
 
 Any non-self scan (T1–T3), org accounts, SSO, API · automated broker removal, DROP/DSAR automation (capture intent only) · continuous monitoring/alerting · public records, image search, technical/attack-surface modules · identity-graph visualization, exports, B2B dashboards · full billing (a simple founding/pre-order plan to test willingness-to-pay is optional).
 
+## What's next
+
+All milestones above are complete. The path from code-complete to a measured
+private beta — deployment, backend hardening, frontend/brand, and the beta
+program — is sequenced in [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md).
+
 ## Optional pre-MVP de-risker (PRD §13.9)
 
 Run 25–50 **manual "concierge" scans** for recruited users (analyst assembles the report by hand in Ayin's format) to validate accuracy, report design, the "aha," and willingness-to-pay before automating — and to seed the broker playbook and scoring rubric. Self/consented subjects only, same safety rules.

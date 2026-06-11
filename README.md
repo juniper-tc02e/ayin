@@ -9,7 +9,9 @@ Ayin performs an OSINT scan of a person from **publicly available** sources — 
 ## Documentation
 
 - **[`docs/Ayin-PRD-and-SaaS-Plan.md`](docs/Ayin-PRD-and-SaaS-Plan.md)** — the full product/architecture/business spec (source of truth).
-- **[`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md)** — the MVP, sequenced into build tickets.
+- **[`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md)** — the MVP, sequenced into build tickets (complete).
+- **[`docs/LAUNCH-PLAN.md`](docs/LAUNCH-PLAN.md)** — deployment, hardening, frontend/brand, and the beta program (current phase).
+- **[`docs/BETA-RUNBOOK.md`](docs/BETA-RUNBOOK.md)** — week-to-week beta operations.
 - **[`CLAUDE.md`](CLAUDE.md)** — operating constraints + conventions (read first if you're building).
 
 ## Architecture (short version)
