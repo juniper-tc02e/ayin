@@ -8,6 +8,7 @@ import ScorePanel from "@/components/ScorePanel";
 import FindingsList from "@/components/FindingsList";
 import HardeningChecklist from "@/components/HardeningChecklist";
 import DataRights from "@/components/DataRights";
+import IntentCTA from "@/components/IntentCTA";
 
 export default function ReportPage({ params }: { params: Promise<{ scanId: string }> }) {
   const { scanId } = use(params);
@@ -97,15 +98,11 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
         coming.
       </p>
 
-      {/* 5. Watch for changes */}
-      <div className="card">
-        <h2 style={{ marginTop: 0, fontSize: "1rem" }}>Watch for changes</h2>
-        <p className="dim" style={{ margin: 0, fontSize: "0.9rem" }}>
-          Exposure isn&apos;t static — new breaches and re-listings happen. Continuous
-          monitoring with alerts is on the roadmap; for now, re-scan periodically (your
-          score history stays on the dashboard).
-        </p>
-      </div>
+      {/* 5. Watch for changes — intent capture (M4-4) */}
+      <IntentCTA
+        scanId={scanId}
+        hasBrokerFindings={(checklist?.items ?? []).some((i) => i.category === "broker")}
+      />
 
       {/* 6. Your data & rights */}
       <DataRights />

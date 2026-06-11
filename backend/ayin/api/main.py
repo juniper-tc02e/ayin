@@ -72,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         exclusions,
         findings,
         identifiers,
+        intent,
         preview,
         scans,
         tos,
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(exclusions.router)
     app.include_router(account.router)
     app.include_router(analytics.router)
+    app.include_router(intent.router)
     return app
 
 
