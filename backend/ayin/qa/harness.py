@@ -120,7 +120,8 @@ def format_metrics(m: QAMetrics) -> str:
 
     lines = [
         "Findings-accuracy QA (PRD §13.7)",
-        f"  reviewed: {m.reviewed} (correct {m.correct} / incorrect {m.incorrect} / unsure {m.unsure})",
+        f"  reviewed: {m.reviewed} "
+        f"(correct {m.correct} / incorrect {m.incorrect} / unsure {m.unsure})",
         f"  precision (shown findings): {pct(m.precision)}   target ≥ {PRECISION_TARGET:.0%}"
         + ("  ✓" if m.precision_ok else "  ✗ BELOW TARGET"),
     ]

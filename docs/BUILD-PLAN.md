@@ -80,13 +80,13 @@ Goal: the activation moment — a calm, sourced report — plus the rest of the 
 
 Goal: make the funnel measurable and the findings trustworthy.
 
-- [ ] **M4-1 — Onboarding + seed entry.** Multi-identifier entry (name, emails, phones, usernames, city) with validation/normalization; "here's what we'll check and why" + ETA; async progress with partial results streaming in. (FR-SCAN-1, PRD §12.2 Flow A)
+- [x] **M4-1 — Onboarding + seed entry.** Multi-identifier entry (name, emails, phones, usernames, city) with validation/normalization; "here's what we'll check and why" + ETA; async progress with partial results streaming in. (FR-SCAN-1, PRD §12.2 Flow A)
   - *Accept:* a non-technical user can enter seeds and watch progress to a report.
-- [ ] **M4-2 — Analytics instrumentation.** Track the AARRR funnel for the §13.7 metrics: scan-started, scan-completed, report-viewed, action-started, monitoring-intent captured. Privacy-respecting (no PII in events).
+- [x] **M4-2 — Analytics instrumentation.** Track the AARRR funnel for the §13.7 metrics: scan-started, scan-completed, report-viewed, action-started, monitoring-intent captured. Privacy-respecting (no PII in events).
   - *Accept:* each metric in §13.7 is queryable; no PII leaves the app in analytics payloads.
-- [ ] **M4-3 — Findings-accuracy QA harness.** Sampling + manual-QA workflow to measure precision on shown findings against the ≥ 90% target; track false-merge rate. (PRD §13.7, §18.3)
+- [x] **M4-3 — Findings-accuracy QA harness.** Sampling + manual-QA workflow to measure precision on shown findings against the ≥ 90% target; track false-merge rate. (PRD §13.7, §18.3)
   - *Accept:* a repeatable harness reports finding precision and ER false-merge rate on a sample.
-- [ ] **M4-4 — Monitoring/removal intent capture.** Waitlist/pre-order CTA on the report ("watch for new exposure", "remove these listings") measuring pull without building the engine. (PRD §13.2)
+- [x] **M4-4 — Monitoring/removal intent capture.** Waitlist/pre-order CTA on the report ("watch for new exposure", "remove these listings") measuring pull without building the engine. (PRD §13.2)
   - *Accept:* intent is captured per user and reportable as a % of activated users.
 
 ## M5 — Private beta & go/no-go (PRD weeks 11–12)

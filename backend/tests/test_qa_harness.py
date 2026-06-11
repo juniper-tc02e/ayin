@@ -1,7 +1,6 @@
 """M4-3 acceptance: a repeatable harness reports finding precision and the
 ER false-merge rate on a sample."""
 
-import json
 
 import pytest
 from sqlalchemy import select
@@ -12,7 +11,6 @@ from ayin.connectors.fake import FakeConnector
 from ayin.models import AuditRecord
 from ayin.orchestrator import engine as orch
 from ayin.qa.harness import (
-    FALSE_MERGE_TARGET,
     PRECISION_TARGET,
     compute_metrics,
     format_metrics,

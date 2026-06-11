@@ -2,6 +2,7 @@
 and why" + an honest ETA, before the user commits to scanning."""
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 
 from ayin.api.deps import CurrentUser, DbDep, SettingsDep
 from ayin.api.routes.identifiers import get_my_subject
@@ -14,7 +15,6 @@ from ayin.orchestrator.engine import eligible_seed_identifiers, has_verified_anc
 from ayin.safety.exclusion import split_excluded
 from ayin.safety.tos import has_accepted_current
 from ayin.services.normalize import CHALLENGEABLE_KINDS
-from sqlalchemy import select
 
 router = APIRouter(prefix="/scans", tags=["scans"])
 
@@ -67,7 +67,10 @@ def scan_preview(
                 will, reason = True, "verified — yours to scan"
             else:
                 will, reason = True, "auxiliary — refines results alongside your verified anchor"
-        elif ident.kind in CHALLENGEABLE_KINDS and ident.verification_state != VerificationState.VERIFIED:
+        elif (
+            ident.kind in CHALLENGEABLE_KINDS
+            and ident.verification_state != VerificationState.VERIFIED
+        ):
             will, reason = False, "not verified yet — verify control to include it"
         else:
             will, reason = False, "not eligible"

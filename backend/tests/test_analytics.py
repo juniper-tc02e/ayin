@@ -106,7 +106,8 @@ def test_product_flow_emits_funnel_events(client, db, unique_email):
         "match_status"
     ] == "possible" else client.post(
         "/analytics/events",
-        json={"name": "action_started", "scan_id": scan_id, "properties": {"category": "credential"}},
+        json={"name": "action_started", "scan_id": scan_id,
+              "properties": {"category": "credential"}},
     )
 
     names = set(db.execute(select(AnalyticsEvent.name)).scalars())
