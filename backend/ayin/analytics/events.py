@@ -27,6 +27,7 @@ log = logging.getLogger("ayin.analytics")
 
 ALLOWED_EVENTS = {
     "signup_completed",
+    "invite_redeemed",
     "identifier_added",
     "identifier_verified",
     "tos_accepted",

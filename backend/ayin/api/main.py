@@ -69,6 +69,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         account,
         analytics,
         auth,
+        config,
         exclusions,
         findings,
         identifiers,
@@ -80,6 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from ayin.connectors.bootstrap import configure_default_connectors
 
     configure_default_connectors(settings)
+    app.include_router(config.router)
     app.include_router(auth.router)
     app.include_router(identifiers.router)
     app.include_router(tos.router)

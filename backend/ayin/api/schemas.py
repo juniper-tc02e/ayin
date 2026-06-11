@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class SignupIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=512)  # quality checked in passwords.py
+    invite_code: str | None = None  # required when the beta gate is on (M5-1)
 
 
 class LoginIn(BaseModel):

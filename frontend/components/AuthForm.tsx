@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, User } from "@/lib/api";
 
@@ -8,15 +8,27 @@ export default function AuthForm({ mode }: { mode: "signup" | "login" }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteRequired, setInviteRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (mode === "signup") {
+      api<{ beta_invite_required: boolean }>("/config")
+        .then((c) => setInviteRequired(c.beta_invite_required))
+        .catch(() => {});
+    }
+  }, [mode]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await api<User>(`/auth/${mode}`, { method: "POST", body: { email, password } });
+      const body: Record<string, unknown> = { email, password };
+      if (mode === "signup" && inviteRequired) body.invite_code = inviteCode;
+      await api<User>(`/auth/${mode}`, { method: "POST", body });
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
@@ -48,6 +60,18 @@ export default function AuthForm({ mode }: { mode: "signup" | "login" }) {
           style={inputStyle}
         />
       </label>
+      {mode === "signup" && inviteRequired && (
+        <label>
+          Invite code <span className="dim">(Ayin is in private beta)</span>
+          <input
+            required
+            placeholder="AYIN-XXXX-XXXX"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+            style={inputStyle}
+          />
+        </label>
+      )}
       {error && <p style={{ color: "var(--down)", margin: 0 }}>{error}</p>}
       <button type="submit" disabled={busy} style={buttonStyle}>
         {busy ? "…" : mode === "signup" ? "Create account" : "Log in"}

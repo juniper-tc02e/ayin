@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # ── ToS / AUP gate (FR-AUTH-2) ───────────────────────────
     tos_current_version: str = "2026-06-10"
 
+    # ── Private beta (M5-1): require an invite code at signup ─
+    beta_invite_required: bool = False
+
     # ── Safety / limits (FR-SCAN-3; env values are fallback/seed —
     #    live values come from the rate_limit_policies table, M1-6) ──
     rate_limit_scans_per_day: int = 5

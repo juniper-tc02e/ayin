@@ -8,6 +8,7 @@ from ayin.models.base import Base
 from ayin.models.exclusion import Exclusion
 from ayin.models.finding import Finding, RemediationTask, Score
 from ayin.models.intent import IntentKind, IntentSignal
+from ayin.models.invite import Invite
 from ayin.models.job import ConnectorJob
 from ayin.models.protection import ProtectionEntry
 from ayin.models.ratelimit import RateLimitPolicy
@@ -37,6 +38,7 @@ __all__ = [
     "Exclusion",
     "IntentSignal",
     "IntentKind",
+    "Invite",
     "TosAcceptance",
     "VaultKey",
     "VaultItem",

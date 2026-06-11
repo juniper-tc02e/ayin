@@ -90,6 +90,25 @@ def signup(
     if problem:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, problem)
 
+    # Private-beta gate (M5-1): a recruited cohort only.
+    invite = None
+    if settings.beta_invite_required:
+        from ayin.beta.invites import InviteError, redeem_invite  # noqa: PLC0415
+
+        if not body.invite_code:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail={"code": "INVITE_REQUIRED",
+                        "message": "Ayin is in a private beta — an invite code is required."},
+            )
+        try:
+            invite = redeem_invite(db, body.invite_code)
+        except InviteError as exc:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail={"code": "INVITE_INVALID", "message": str(exc)},
+            ) from None
+
     email = body.email.lower().strip()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email exists.")
@@ -117,6 +136,8 @@ def signup(
 
     track(db, "signup_completed", user_id=user.id)
     track(db, "identifier_added", user_id=user.id, properties={"kind": "email"})
+    if invite is not None:
+        track(db, "invite_redeemed", user_id=user.id)
     _send_account_verification(db, settings, sender, user)
     db.commit()
 

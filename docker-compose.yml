@@ -82,6 +82,7 @@ services:
       SMTP_HOST: maildev
       SMTP_PORT: 1025
       SCAN_EXECUTION: celery
+      BETA_INVITE_REQUIRED: ${BETA_INVITE_REQUIRED:-false}
     ports:
       - "8000:8000"
     volumes:
