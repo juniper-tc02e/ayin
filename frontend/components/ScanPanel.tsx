@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, ApiError, Scan } from "@/lib/api";
+import { api, ApiError, FindingsPage, Scan } from "@/lib/api";
 import FindingsList from "@/components/FindingsList";
 import ScorePanel from "@/components/ScorePanel";
 
@@ -22,6 +22,7 @@ export default function ScanPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reviewVersion, setReviewVersion] = useState(0);
+  const [partial, setPartial] = useState<FindingsPage | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(() => {
@@ -31,9 +32,17 @@ export default function ScanPanel() {
         const active = rows.find((s) =>
           ["queued", "gated", "running", "resolving", "scoring"].includes(s.status)
         );
-        if (!active && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
+        if (active) {
+          // partial results persist per connector job — stream them in
+          api<FindingsPage>(`/scans/${active.id}/findings`)
+            .then(setPartial)
+            .catch(() => {});
+        } else {
+          setPartial(null);
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
         }
       })
       .catch(() => {});
@@ -127,6 +136,12 @@ export default function ScanPanel() {
                 </code>
               ))}
             </div>
+          )}
+          {["running", "resolving", "scoring"].includes(selectedScan.status) && partial && (
+            <p className="dim" style={{ fontSize: "0.85rem", margin: "0.5rem 0 0" }}>
+              Partial results streaming in: {partial.findings.length} finding
+              {partial.findings.length === 1 ? "" : "s"} so far…
+            </p>
           )}
           {selectedScan.status === "done" && (
             <div style={{ marginTop: "1rem" }}>

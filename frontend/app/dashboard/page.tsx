@@ -7,11 +7,17 @@ import IdentifierManager from "@/components/IdentifierManager";
 import TosGate from "@/components/TosGate";
 import ScanPanel from "@/components/ScanPanel";
 import DataRights from "@/components/DataRights";
+import GettingStarted from "@/components/GettingStarted";
+import ScanPreview from "@/components/ScanPreview";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [identifierCount, setIdentifierCount] = useState(0);
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
     api<User>("/auth/me")
@@ -20,6 +26,12 @@ export default function DashboardPage() {
         if (err instanceof ApiError && err.status === 401) router.push("/login");
       })
       .finally(() => setLoading(false));
+    api<{ accepted_current: boolean }>("/tos")
+      .then((t) => setTosAccepted(t.accepted_current))
+      .catch(() => {});
+    api<{ id: string }[]>("/scans")
+      .then((s) => setHasScanned(s.length > 0))
+      .catch(() => {});
   }, [router]);
 
   async function logout() {
@@ -50,8 +62,22 @@ export default function DashboardPage() {
           </p>
         )}
       </div>
+      {user && (
+        <GettingStarted
+          user={user}
+          identifierCount={identifierCount}
+          tosAccepted={tosAccepted}
+          hasScanned={hasScanned}
+        />
+      )}
       <TosGate />
-      <IdentifierManager />
+      <IdentifierManager
+        onChange={(n) => {
+          setIdentifierCount(n);
+          setPreviewKey((v) => v + 1);
+        }}
+      />
+      <ScanPreview refreshKey={previewKey} />
       <ScanPanel />
       <DataRights />
       <p style={{ marginTop: "1.5rem" }}>

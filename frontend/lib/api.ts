@@ -163,3 +163,19 @@ export type AccountSummary = {
   pii_retention_days: number;
   note: string;
 };
+
+export type ScanPreview = {
+  ready: boolean;
+  blockers: string[];
+  seeds: { kind: string; value: string; will_scan: boolean; reason: string }[];
+  connectors: { id: string; name: string; why: string; categories: string[]; eta_seconds: number }[];
+  eta_seconds: number;
+};
+
+/** Fire-and-forget funnel event (failures are silently ignored). */
+export function trackClient(name: string, scanId?: string, properties?: Record<string, unknown>) {
+  api("/analytics/events", {
+    method: "POST",
+    body: { name, scan_id: scanId ?? null, properties: properties ?? {} },
+  }).catch(() => {});
+}

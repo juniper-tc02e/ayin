@@ -171,3 +171,29 @@ class ChecklistOut(BaseModel):
     scan_id: uuid.UUID
     current_overall: int
     items: list[ChecklistItemOut]
+
+
+# ── Scan preview (M4-1) ───────────────────────────────────────
+
+
+class PreviewSeedOut(BaseModel):
+    kind: str
+    value: str
+    will_scan: bool
+    reason: str
+
+
+class PreviewConnectorOut(BaseModel):
+    id: str
+    name: str
+    why: str
+    categories: list[str]
+    eta_seconds: int
+
+
+class ScanPreviewOut(BaseModel):
+    ready: bool
+    blockers: list[str]
+    seeds: list[PreviewSeedOut]
+    connectors: list[PreviewConnectorOut]
+    eta_seconds: int

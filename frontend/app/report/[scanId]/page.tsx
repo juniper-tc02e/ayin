@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ApiError, Checklist, Scan } from "@/lib/api";
+import { api, ApiError, Checklist, Scan, trackClient } from "@/lib/api";
 import ScorePanel from "@/components/ScorePanel";
 import FindingsList from "@/components/FindingsList";
 import HardeningChecklist from "@/components/HardeningChecklist";
@@ -19,7 +19,10 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
 
   useEffect(() => {
     api<Scan>(`/scans/${scanId}`)
-      .then(setScan)
+      .then((s) => {
+        setScan(s);
+        if (s.status === "done") trackClient("report_viewed", s.id);
+      })
       .catch((err) => {
         if (err instanceof ApiError && err.status === 401) router.push("/login");
         else setMissing(true);

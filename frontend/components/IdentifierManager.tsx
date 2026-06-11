@@ -27,7 +27,11 @@ const stateColor: Record<Identifier["verification_state"], string> = {
   unverified: "var(--text-dim)",
 };
 
-export default function IdentifierManager() {
+export default function IdentifierManager({
+  onChange,
+}: {
+  onChange?: (count: number) => void;
+}) {
   const [rows, setRows] = useState<Identifier[]>([]);
   const [kind, setKind] = useState("email");
   const [value, setValue] = useState("");
@@ -37,8 +41,13 @@ export default function IdentifierManager() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    api<Identifier[]>("/identifiers").then(setRows).catch(() => {});
-  }, []);
+    api<Identifier[]>("/identifiers")
+      .then((r) => {
+        setRows(r);
+        onChange?.(r.length);
+      })
+      .catch(() => {});
+  }, [onChange]);
 
   useEffect(refresh, [refresh]);
 

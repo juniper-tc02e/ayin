@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, Checklist, ChecklistItem } from "@/lib/api";
+import { api, Checklist, ChecklistItem, trackClient } from "@/lib/api";
 
 export default function HardeningChecklist({
   scanId,
@@ -14,6 +14,7 @@ export default function HardeningChecklist({
 }) {
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [tracked, setTracked] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api<Checklist>(`/scans/${scanId}/checklist`).then(setChecklist).catch(() => {});
@@ -46,7 +47,17 @@ export default function HardeningChecklist({
           item={item}
           index={topOnly ? idx + 1 : undefined}
           open={open === item.finding_id}
-          onToggle={() => setOpen(open === item.finding_id ? null : item.finding_id)}
+          onToggle={() => {
+            const next = open === item.finding_id ? null : item.finding_id;
+            setOpen(next);
+            if (next && !tracked.has(item.finding_id)) {
+              setTracked(new Set(tracked).add(item.finding_id));
+              trackClient("action_started", scanId, {
+                category: item.category,
+                effort: item.effort,
+              });
+            }
+          }}
         />
       ))}
     </div>
