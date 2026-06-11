@@ -65,7 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         status = "ok" if db == "ok" and redis_state == "ok" else "degraded"
         return {"status": status, "db": db, "redis": redis_state, "version": __version__}
 
-    from ayin.api.routes import auth, exclusions, findings, identifiers, scans, tos
+    from ayin.api.routes import account, auth, exclusions, findings, identifiers, scans, tos
     from ayin.connectors.bootstrap import configure_default_connectors
 
     configure_default_connectors(settings)
@@ -75,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(scans.router)
     app.include_router(findings.router)
     app.include_router(exclusions.router)
+    app.include_router(account.router)
     return app
 
 
