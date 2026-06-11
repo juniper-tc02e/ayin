@@ -1,0 +1,111 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { api, ApiError, Checklist, Scan } from "@/lib/api";
+import ScorePanel from "@/components/ScorePanel";
+import FindingsList from "@/components/FindingsList";
+import HardeningChecklist from "@/components/HardeningChecklist";
+import DataRights from "@/components/DataRights";
+
+export default function ReportPage({ params }: { params: Promise<{ scanId: string }> }) {
+  const { scanId } = use(params);
+  const router = useRouter();
+  const [scan, setScan] = useState<Scan | null>(null);
+  const [checklist, setChecklist] = useState<Checklist | null>(null);
+  const [reviewVersion, setReviewVersion] = useState(0);
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    api<Scan>(`/scans/${scanId}`)
+      .then(setScan)
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) router.push("/login");
+        else setMissing(true);
+      });
+  }, [scanId, router]);
+
+  useEffect(() => {
+    api<Checklist>(`/scans/${scanId}/checklist`).then(setChecklist).catch(() => {});
+  }, [scanId, reviewVersion]);
+
+  if (missing)
+    return (
+      <main>
+        <p className="dim">Report not found. <Link href="/dashboard">Back to dashboard</Link></p>
+      </main>
+    );
+  if (!scan) return <main><p className="dim">Loading your report…</p></main>;
+  if (scan.status !== "done")
+    return (
+      <main>
+        <h1>Your exposure report</h1>
+        <div className="card">
+          <p style={{ margin: 0 }}>
+            This scan is {scan.status}
+            {scan.error ? <span className="dim"> — {scan.error}</span> : null}.{" "}
+            <Link href="/dashboard">Watch progress on the dashboard</Link>.
+          </p>
+        </div>
+      </main>
+    );
+
+  const lowExposure = checklist !== null && checklist.current_overall < 10;
+
+  return (
+    <main>
+      <p style={{ margin: "0 0 0.5rem" }}>
+        <Link href="/dashboard" className="dim">← Dashboard</Link>
+      </p>
+      <h1 style={{ marginTop: 0 }}>Your exposure report</h1>
+      <p className="dim" style={{ marginTop: "-0.5rem", fontSize: "0.85rem" }}>
+        Scanned {scan.finished_at ? new Date(scan.finished_at).toLocaleString() : "—"} ·{" "}
+        {scan.source_set.length} source(s) · every finding cites where it came from
+      </p>
+
+      {/* 1. Hero score + verdict */}
+      <ScorePanel scanId={scanId} refreshKey={reviewVersion} />
+
+      {/* low-exposure: reassure, never a blank page */}
+      {lowExposure && (
+        <div className="card" style={{ borderColor: "var(--ok)" }}>
+          <p style={{ margin: 0 }}>
+            Good news: across breaches, data brokers, and the public web, the sources we
+            checked found very little tied to your verified identifiers. No action needed —
+            re-scan after big life events (moves, sign-ups, breaches in the news), and
+            consider the small cleanups below if any appear.
+          </p>
+        </div>
+      )}
+
+      {/* 2. Top 3 to fix now */}
+      <HardeningChecklist scanId={scanId} refreshKey={reviewVersion} topOnly={3} />
+
+      {/* 3. Findings by category (+ possible-match review) */}
+      <h2 style={{ fontSize: "1.05rem", marginTop: "1.5rem" }}>What we found, by category</h2>
+      <FindingsList scanId={scanId} onReviewed={() => setReviewVersion((v) => v + 1)} />
+
+      {/* 4. Full remediation plan */}
+      <h2 style={{ fontSize: "1.05rem", marginTop: "1.5rem" }}>Your remediation plan</h2>
+      <HardeningChecklist scanId={scanId} refreshKey={reviewVersion} />
+      <p className="dim" style={{ fontSize: "0.8rem" }}>
+        Checklist is read-only for now — done-tracking and automated broker removal are
+        coming.
+      </p>
+
+      {/* 5. Watch for changes */}
+      <div className="card">
+        <h2 style={{ marginTop: 0, fontSize: "1rem" }}>Watch for changes</h2>
+        <p className="dim" style={{ margin: 0, fontSize: "0.9rem" }}>
+          Exposure isn&apos;t static — new breaches and re-listings happen. Continuous
+          monitoring with alerts is on the roadmap; for now, re-scan periodically (your
+          score history stays on the dashboard).
+        </p>
+      </div>
+
+      {/* 6. Your data & rights */}
+      <DataRights />
+    </main>
+  );
+}

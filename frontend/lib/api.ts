@@ -137,3 +137,29 @@ export async function api<T>(
   }
   return (await res.json()) as T;
 }
+
+export type ChecklistItem = {
+  finding_id: string;
+  category: string;
+  sensitivity: string;
+  title: string;
+  steps: string[];
+  expected_score_delta: number;
+  effort: "low" | "medium";
+};
+
+export type Checklist = {
+  scan_id: string;
+  current_overall: number;
+  items: ChecklistItem[];
+};
+
+export type AccountSummary = {
+  email: string;
+  identifiers: number;
+  scans: number;
+  findings: number;
+  vault_items: number;
+  pii_retention_days: number;
+  note: string;
+};

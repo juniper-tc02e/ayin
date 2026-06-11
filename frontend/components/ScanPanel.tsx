@@ -130,6 +130,18 @@ export default function ScanPanel() {
           )}
           {selectedScan.status === "done" && (
             <div style={{ marginTop: "1rem" }}>
+              <p style={{ margin: "0 0 0.75rem" }}>
+                <a
+                  href={`/report/${selectedScan.id}`}
+                  style={{
+                    display: "inline-block", padding: "0.5rem 1rem",
+                    background: "var(--accent)", color: "#06222e", borderRadius: 8,
+                    fontWeight: 600, textDecoration: "none",
+                  }}
+                >
+                  View your full exposure report →
+                </a>
+              </p>
               <ScorePanel scanId={selectedScan.id} refreshKey={reviewVersion} />
               <FindingsList
                 scanId={selectedScan.id}

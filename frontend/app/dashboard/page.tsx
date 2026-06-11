@@ -6,6 +6,7 @@ import { api, ApiError, User } from "@/lib/api";
 import IdentifierManager from "@/components/IdentifierManager";
 import TosGate from "@/components/TosGate";
 import ScanPanel from "@/components/ScanPanel";
+import DataRights from "@/components/DataRights";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -52,6 +53,7 @@ export default function DashboardPage() {
       <TosGate />
       <IdentifierManager />
       <ScanPanel />
+      <DataRights />
       <p style={{ marginTop: "1.5rem" }}>
         <button
           onClick={logout}
