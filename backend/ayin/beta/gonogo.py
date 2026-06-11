@@ -32,8 +32,6 @@ from sqlalchemy.orm import Session
 from ayin.analytics.funnel import FunnelReport, funnel_report
 from ayin.models import AuditRecord, Scan
 from ayin.qa.harness import (
-    FALSE_MERGE_TARGET,
-    PRECISION_TARGET,
     QAMetrics,
     compute_metrics,
     read_jsonl,

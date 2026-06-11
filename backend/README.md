@@ -6,15 +6,21 @@ FastAPI API gateway + Celery workers — the scanning core: connectors, entity r
 
 ```
 ayin/
-  api/           FastAPI app — auth, tiering, rate-limit, routes
-  orchestrator/  scan job state machine (Celery tasks; queued→gated→running→…→done|held)
-  connectors/    uniform connector contract + breach / search / broker (MVP)
-  resolution/    entity resolution (rules + thresholds for MVP)
-  scoring/       versioned Exposure Score
-  safety/        T&S gates, abuse heuristics, audit log, exclude-me
-  vault/         PII vault (encrypt, retention, crypto-shred)
-  models/        data model + Alembic migrations
-tests/           unit tests + findings-accuracy QA harness
+  api/           FastAPI app — routes, deps, schemas (auth, scans, findings, …)
+  analytics/     privacy-screened funnel events + §13.7 report CLI
+  auth/          passwords (argon2), JWTs (session/step-up), verification tokens
+  beta/          invite tooling + the go/no-go scorecard CLI (M5)
+  connectors/    uniform connector contract + breach / search / broker registry
+  models/        data model (Alembic migrations live in ../migrations)
+  orchestrator/  scan job state machine (queued→gated→running→…→done|held)
+  qa/            findings-accuracy QA harness (sample → review → report)
+  remediation/   read-only hardening checklist with honest score deltas
+  resolution/    entity resolution — dedupe, anti-namesake matching, review
+  safety/        audit log, gates (ToS/abuse/limits), exclusion, visibility
+  scoring/       versioned Exposure Score rubric + engine
+  services/      email/SMS senders, identifier normalization
+  vault/         PII vault (envelope encryption, retention, crypto-shred)
+tests/           174+ tests (pgserver-backed — no Docker needed)
 ```
 
 ## Run

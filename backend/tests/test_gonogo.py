@@ -7,8 +7,6 @@
 
 import uuid
 
-import pytest
-
 from ayin.analytics import track
 from ayin.beta.gonogo import MIN_COHORT, evaluate, format_gonogo
 from ayin.config import get_settings
@@ -110,6 +108,7 @@ def test_unaudited_scan_fails_the_safety_hard_gate(db):
     _real_scan(db)
     user = _mk_user(db, with_aux=False)
     from sqlalchemy import select
+
     from ayin.models import Subject
     subject = db.execute(
         select(Subject).where(Subject.owner_user_id == user.id)

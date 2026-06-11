@@ -91,8 +91,8 @@ Goal: make the funnel measurable and the findings trustworthy.
 
 ## M5 — Private beta & go/no-go (PRD weeks 11–12)
 
-- [ ] **M5-1 — Invite-only beta** for a recruited cohort (self/consented subjects only).
-- [ ] **M5-2 — Measure against go/no-go criteria** (PRD §13.7) and interview users.
+- [x] **M5-1 — Invite-only beta** for a recruited cohort (self/consented subjects only).
+- [x] **M5-2 — Measure against go/no-go criteria** (PRD §13.7) and interview users.
 
 ### Go / no-go to Phase 1 (PRD §13.7)
 
