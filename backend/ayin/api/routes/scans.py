@@ -16,6 +16,8 @@ from ayin.api.deps import CurrentUser, DbDep, SettingsDep
 from ayin.api.routes.identifiers import get_my_subject
 from ayin.api.schemas import (
     AppealIn,
+    ChecklistItemOut,
+    ChecklistOut,
     FindingOut,
     MessageOut,
     FindingsPage,
@@ -228,6 +230,50 @@ def get_score(
         computed_at=score.computed_at,
         verdict=_verdict(score.overall),
         contributing=[ScoreContributorOut(**c) for c in score.contributing],
+    )
+
+
+@router.get("/{scan_id}/checklist", response_model=ChecklistOut)
+def get_checklist(
+    scan_id: uuid.UUID,
+    request: Request,
+    user: CurrentUser,
+    db: DbDep,
+    settings: SettingsDep,
+    subject: Subject = Depends(get_my_subject),
+):
+    """Read-only hardening checklist with honest expected score deltas
+    (FR-REM-3 lite). Credential items stay generic without step-up."""
+    from ayin.remediation import build_checklist  # noqa: PLC0415
+
+    scan = _owned_scan(db, subject, scan_id)
+    step_up_token = request.headers.get("X-Ayin-Step-Up")
+    elevated = (
+        decode_token(settings, step_up_token, required_scope=SCOPE_STEP_UP) == user.id
+        if step_up_token
+        else False
+    )
+    current_overall, items = build_checklist(db, scan, elevated=elevated)
+    record_data_access(
+        db, actor=user_actor(user.id), subject_id=subject.id,
+        resource="checklist", purpose="self-view", scan_id=scan.id,
+    )
+    db.commit()
+    return ChecklistOut(
+        scan_id=scan.id,
+        current_overall=current_overall,
+        items=[
+            ChecklistItemOut(
+                finding_id=uuid.UUID(i.finding_id),
+                category=i.category,
+                sensitivity=i.sensitivity,
+                title=i.title,
+                steps=i.steps,
+                expected_score_delta=i.expected_score_delta,
+                effort=i.effort,
+            )
+            for i in items
+        ],
     )
 
 

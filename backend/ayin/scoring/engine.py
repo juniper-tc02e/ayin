@@ -31,12 +31,11 @@ def eligible_findings(db: Session, scan: Scan) -> list[Finding]:
     )
 
 
-def compute_score(db: Session, scan: Scan) -> Score:
-    """Compute (or recompute) the scan's Exposure Score. Commits are the
-    caller's job; one Score row per scan, updated in place."""
-    now = datetime.now(timezone.utc)
-    findings = eligible_findings(db, scan)
-
+def aggregate(findings: list[Finding], *, now: datetime | None = None) -> tuple[int, dict, list]:
+    """Pure scoring math over a finding set → (overall, subscores,
+    contributing). Used by compute_score AND by what-if calculations
+    (e.g. the hardening checklist's expected score deltas, M3-2)."""
+    now = now or datetime.now(timezone.utc)
     category_points: dict[FindingCategory, float] = dict.fromkeys(FindingCategory, 0.0)
     contributing: list[dict] = []
     for f in findings:
@@ -55,14 +54,21 @@ def compute_score(db: Session, scan: Scan) -> Score:
             }
         )
     contributing.sort(key=lambda c: -c["points"])
-
     subscores = {
         cat.value: rubric.saturate(points, cat) for cat, points in category_points.items()
     }
     overall = round(
         sum(rubric.CATEGORY_WEIGHTS[cat] * subscores[cat.value] for cat in FindingCategory)
     )
-    overall = max(0, min(100, overall))
+    return max(0, min(100, overall)), subscores, contributing
+
+
+def compute_score(db: Session, scan: Scan) -> Score:
+    """Compute (or recompute) the scan's Exposure Score. Commits are the
+    caller's job; one Score row per scan, updated in place."""
+    now = datetime.now(timezone.utc)
+    findings = eligible_findings(db, scan)
+    overall, subscores, contributing = aggregate(findings, now=now)
 
     score = db.execute(select(Score).where(Score.scan_id == scan.id)).scalar_one_or_none()
     if score is None:

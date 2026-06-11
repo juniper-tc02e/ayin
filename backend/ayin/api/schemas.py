@@ -152,3 +152,22 @@ class ScoreOut(BaseModel):
 
 class AppealIn(BaseModel):
     message: str = Field(min_length=10, max_length=2000)
+
+
+# ── Hardening checklist (M3-2) ────────────────────────────────
+
+
+class ChecklistItemOut(BaseModel):
+    finding_id: uuid.UUID
+    category: str
+    sensitivity: str
+    title: str
+    steps: list[str]
+    expected_score_delta: int
+    effort: str
+
+
+class ChecklistOut(BaseModel):
+    scan_id: uuid.UUID
+    current_overall: int
+    items: list[ChecklistItemOut]
