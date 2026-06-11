@@ -103,6 +103,9 @@ def delete_everything(
         db, actor=user_actor(user.id), event_type="account.delete_requested",
         subject_id=subject.id, detail=counts,
     )
+    from ayin.analytics import track  # noqa: PLC0415
+
+    track(db, "account_deleted", user_id=user.id)
     shredded = _vault(settings).shred_subject(
         db, subject_id=subject.id, actor=user_actor(user.id)
     )

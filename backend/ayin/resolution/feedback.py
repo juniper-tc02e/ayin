@@ -42,6 +42,12 @@ def _apply(db: Session, user: User, finding: Finding, status: MatchStatus) -> Fi
         subject_id=finding.subject_id,
         detail={"finding_id": str(finding.id), "previous": previous.value},
     )
+    from ayin.analytics import track  # noqa: PLC0415
+
+    track(
+        db, "finding_reviewed", user_id=user.id, scan_id=finding.scan_id,
+        properties={"decision": status.value, "category": finding.category.value},
+    )
     _recompute_score_if_available(db, finding.scan_id)
     db.flush()
     return finding

@@ -173,6 +173,9 @@ def add_identifier(
         db, actor=user_actor(user.id), event_type="identifier.added",
         subject_id=subject.id, detail={"identifier_id": str(ident.id), "kind": kind.value},
     )
+    from ayin.analytics import track  # noqa: PLC0415
+
+    track(db, "identifier_added", user_id=user.id, properties={"kind": kind.value})
     if kind in CHALLENGEABLE_KINDS:
         _send_identifier_challenge(db, settings, email_sender, sms_sender, user, ident)
     db.commit()
@@ -261,3 +264,6 @@ def _mark_verified(db, user_id, ident: Identifier) -> None:
         subject_id=ident.subject_id,
         detail={"identifier_id": str(ident.id), "kind": ident.kind.value},
     )
+    from ayin.analytics import track  # noqa: PLC0415
+
+    track(db, "identifier_verified", user_id=user_id, properties={"kind": ident.kind.value})

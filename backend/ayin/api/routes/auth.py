@@ -113,6 +113,10 @@ def signup(
     )
     db.flush()
     record_event(db, actor=user_actor(user.id), event_type="auth.signup")
+    from ayin.analytics import track  # noqa: PLC0415
+
+    track(db, "signup_completed", user_id=user.id)
+    track(db, "identifier_added", user_id=user.id, properties={"kind": "email"})
     _send_account_verification(db, settings, sender, user)
     db.commit()
 
@@ -194,6 +198,9 @@ def verify_email(body: VerifyEmailIn, db: DbDep, settings: SettingsDep):
                 subject_id=subject.id,
                 detail={"identifier_id": str(ident.id), "kind": "email", "via": "account_email"},
             )
+            from ayin.analytics import track  # noqa: PLC0415
+
+            track(db, "identifier_verified", user_id=user.id, properties={"kind": "email"})
     db.commit()
     return _user_out(user)
 

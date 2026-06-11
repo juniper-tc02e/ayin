@@ -215,6 +215,9 @@ def create_scan(db: Session, *, requester: User, settings: Settings) -> Scan:
         db, actor=user_actor(requester.id), event_type="scan.created",
         scan_id=scan.id, subject_id=subject.id,
     )
+    from ayin.analytics import track  # noqa: PLC0415
+
+    track(db, "scan_started", user_id=requester.id, scan_id=scan.id)
     db.commit()
     return scan
 
@@ -224,17 +227,27 @@ def gate_scan(db: Session, scan: Scan, settings: Settings) -> GateResult:
     actor = system_actor("orchestrator")
     _transition(db, scan, ScanStatus.GATED, actor=actor, event="scan.gated")
     result = run_gates(db, scan, settings)
+    from ayin.analytics import track  # noqa: PLC0415
+
     if result.decision == GateDecision.REFUSE:
         scan.error = result.reason
         _transition(
             db, scan, ScanStatus.FAILED, actor=actor, event="scan.refused",
             detail={"reason": result.reason},
         )
+        track(
+            db, "scan_refused", user_id=scan.requester_user_id, scan_id=scan.id,
+            properties={"reason_code": result.reason.split(":")[0][:40]},
+        )
     elif result.decision == GateDecision.HOLD:
         scan.error = result.reason
         _transition(
             db, scan, ScanStatus.HELD, actor=actor, event="scan.held",
             detail={"reason": result.reason},
+        )
+        track(
+            db, "scan_held", user_id=scan.requester_user_id, scan_id=scan.id,
+            properties={"reason_code": result.reason.split(":")[0][:40]},
         )
     db.commit()
     return result
@@ -404,6 +417,19 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
             "findings": sum(j.findings_count for j in jobs),
             "cost_usd": round(sum(j.cost_usd for j in jobs), 6),
             "failed_connectors": sorted(failed),
+        },
+    )
+    from ayin.analytics import track  # noqa: PLC0415
+
+    duration = (
+        (scan.finished_at - scan.started_at).total_seconds() if scan.started_at else None
+    )
+    track(
+        db, "scan_completed", user_id=scan.requester_user_id, scan_id=scan.id,
+        properties={
+            "findings_count": sum(j.findings_count for j in jobs),
+            "connectors": len(jobs),
+            "duration_seconds": round(duration, 1) if duration is not None else None,
         },
     )
     db.commit()

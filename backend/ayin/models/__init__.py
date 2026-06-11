@@ -2,6 +2,7 @@
 complete for Alembic autogeneration and tests."""
 
 from ayin.models.abuse import AbuseSignal
+from ayin.models.analytics import AnalyticsEvent
 from ayin.models.audit import GENESIS_HASH, AuditRecord
 from ayin.models.base import Base
 from ayin.models.exclusion import Exclusion
@@ -29,6 +30,7 @@ __all__ = [
     "AuditRecord",
     "GENESIS_HASH",
     "AbuseSignal",
+    "AnalyticsEvent",
     "RateLimitPolicy",
     "ProtectionEntry",
     "Exclusion",

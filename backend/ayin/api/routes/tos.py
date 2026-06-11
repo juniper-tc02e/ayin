@@ -43,5 +43,8 @@ def accept_tos(body: TosAcceptIn, user: CurrentUser, db: DbDep, settings: Settin
             db, actor=user_actor(user.id), event_type="tos.accepted",
             detail={"version": current},
         )
+        from ayin.analytics import track  # noqa: PLC0415
+
+        track(db, "tos_accepted", user_id=user.id)
         db.commit()
     return TosStatusOut(current_version=current, accepted_current=True)
