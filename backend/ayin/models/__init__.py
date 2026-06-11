@@ -6,6 +6,7 @@ from ayin.models.audit import GENESIS_HASH, AuditRecord
 from ayin.models.base import Base
 from ayin.models.finding import Finding, RemediationTask, Score
 from ayin.models.job import ConnectorJob
+from ayin.models.protection import ProtectionEntry
 from ayin.models.ratelimit import RateLimitPolicy
 from ayin.models.scan import Scan
 from ayin.models.subject import Identifier, Subject
@@ -28,6 +29,7 @@ __all__ = [
     "GENESIS_HASH",
     "AbuseSignal",
     "RateLimitPolicy",
+    "ProtectionEntry",
     "TosAcceptance",
     "VaultKey",
     "VaultItem",

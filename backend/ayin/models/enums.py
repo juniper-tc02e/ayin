@@ -120,6 +120,7 @@ class AbuseSignalKind(str, enum.Enum):
     MINOR_SUBJECT = "minor_subject"
     VICTIM_PROTECTION = "victim_protection"
     ANOMALY = "anomaly"
+    APPEAL = "appeal"  # user-filed false-positive appeal (FR-SCAN-5)
 
 
 class AbuseSignalSeverity(str, enum.Enum):

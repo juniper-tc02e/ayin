@@ -148,3 +148,7 @@ class ScoreOut(BaseModel):
     computed_at: datetime
     verdict: str
     contributing: list[ScoreContributorOut]
+
+
+class AppealIn(BaseModel):
+    message: str = Field(min_length=10, max_length=2000)

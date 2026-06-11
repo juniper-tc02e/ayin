@@ -137,14 +137,23 @@ def run_gates(db: Session, scan: Scan, settings: Settings) -> GateResult:
             "before scanning",
         )
 
+    # Abuse heuristics (FR-SCAN-5 / FR-TS-2) — can refuse or hold BEFORE
+    # any connector touches a source. Runs before rate limiting so a held
+    # scan doesn't also burn the user's quota messaging.
+    from ayin.safety.abuse import evaluate_scan  # noqa: PLC0415
+
+    abuse = evaluate_scan(db, scan, identifiers)
+    if abuse.decision == "refuse":
+        return GateResult(GateDecision.REFUSE, abuse.public_reason)
+    if abuse.decision == "hold":
+        return GateResult(GateDecision.HOLD, abuse.public_reason)
+
     limit = limits.check_scan_allowed(
         db, scan.requester_user_id, settings, exclude_scan_id=scan.id
     )
     if not limit.allowed:
         return GateResult(GateDecision.REFUSE, f"rate_limited: {limit.message}")
 
-    # Abuse heuristics hook (FR-SCAN-5 / FR-TS-2) — full engine lands in M3-3.
-    # The hook exists so M3 plugs in without touching the pipeline shape.
     return GateResult(GateDecision.PASS)
 
 
@@ -190,6 +199,7 @@ def gate_scan(db: Session, scan: Scan, settings: Settings) -> GateResult:
             detail={"reason": result.reason},
         )
     elif result.decision == GateDecision.HOLD:
+        scan.error = result.reason
         _transition(
             db, scan, ScanStatus.HELD, actor=actor, event="scan.held",
             detail={"reason": result.reason},

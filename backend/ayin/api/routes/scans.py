@@ -15,7 +15,9 @@ from sqlalchemy import select
 from ayin.api.deps import CurrentUser, DbDep, SettingsDep
 from ayin.api.routes.identifiers import get_my_subject
 from ayin.api.schemas import (
+    AppealIn,
     FindingOut,
+    MessageOut,
     FindingsPage,
     JobOut,
     ScanOut,
@@ -161,6 +163,39 @@ def get_scan(
     )
     db.commit()
     return _scan_out(db, scan)
+
+
+@router.post("/{scan_id}/appeal", response_model=MessageOut)
+def appeal_scan(
+    scan_id: uuid.UUID,
+    body: AppealIn,
+    user: CurrentUser,
+    db: DbDep,
+    subject: Subject = Depends(get_my_subject),
+):
+    """False-positive appeal for a refused/held scan (FR-SCAN-5): opens a
+    human-review case. Audited."""
+    from ayin.models.enums import ScanStatus  # noqa: PLC0415
+    from ayin.safety.abuse import file_appeal  # noqa: PLC0415
+    from ayin.safety.audit import record_scan_event  # noqa: PLC0415
+
+    scan = _owned_scan(db, subject, scan_id)
+    if scan.status not in (ScanStatus.FAILED, ScanStatus.HELD):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Only refused or held scans can be appealed."
+        )
+    try:
+        file_appeal(db, scan, body.message)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
+    record_scan_event(
+        db, actor=user_actor(user.id), event_type="scan.appeal_submitted",
+        scan_id=scan.id, subject_id=subject.id,
+    )
+    db.commit()
+    return MessageOut(
+        message="Appeal submitted — a human will review this scan decision."
+    )
 
 
 @router.get("/{scan_id}/score", response_model=ScoreOut)
