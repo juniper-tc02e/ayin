@@ -4,6 +4,7 @@ complete for Alembic autogeneration and tests."""
 from ayin.models.abuse import AbuseSignal
 from ayin.models.audit import GENESIS_HASH, AuditRecord
 from ayin.models.base import Base
+from ayin.models.exclusion import Exclusion
 from ayin.models.finding import Finding, RemediationTask, Score
 from ayin.models.job import ConnectorJob
 from ayin.models.protection import ProtectionEntry
@@ -30,6 +31,7 @@ __all__ = [
     "AbuseSignal",
     "RateLimitPolicy",
     "ProtectionEntry",
+    "Exclusion",
     "TosAcceptance",
     "VaultKey",
     "VaultItem",

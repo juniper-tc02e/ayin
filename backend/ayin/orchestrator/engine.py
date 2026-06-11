@@ -71,7 +71,10 @@ class GateResult:
 def eligible_seed_identifiers(db: Session, subject_id: uuid.UUID) -> list[Identifier]:
     """Seeds allowed to fan out: verified challengeable identifiers, plus
     auxiliary kinds (which cannot be challenge-verified). An UNVERIFIED
-    email/phone is excluded — control not yet proven (FR-AUTH-1)."""
+    email/phone is excluded — control not yet proven (FR-AUTH-1).
+    Identifiers on the public exclusion list NEVER fan out (FR-TS-3)."""
+    from ayin.safety.exclusion import split_excluded  # noqa: PLC0415
+
     rows = db.execute(
         select(Identifier).where(Identifier.subject_id == subject_id)
     ).scalars()
@@ -82,7 +85,10 @@ def eligible_seed_identifiers(db: Session, subject_id: uuid.UUID) -> list[Identi
                 out.append(ident)
         else:
             out.append(ident)
-    return out
+    allowed, excluded = split_excluded(db, out)
+    if excluded:
+        log.info("seed selection: %d identifier(s) suppressed by exclusion list", len(excluded))
+    return allowed
 
 
 def has_verified_anchor(identifiers: list[Identifier]) -> bool:
@@ -131,6 +137,32 @@ def run_gates(db: Session, scan: Scan, settings: Settings) -> GateResult:
 
     identifiers = eligible_seed_identifiers(db, scan.subject_id)
     if not has_verified_anchor(identifiers):
+        # Distinguish "never verified" from "this identity excluded itself".
+        # Exclusion purges the seed rows, so check (a) any surviving seed
+        # rows that are hash-excluded and (b) the account email itself.
+        from ayin.safety.exclusion import excluded_hashes, split_excluded  # noqa: PLC0415
+        from ayin.safety.hashing import identifier_hash  # noqa: PLC0415
+
+        all_rows = list(db.execute(
+            select(Identifier).where(Identifier.subject_id == scan.subject_id)
+        ).scalars())
+        _, excluded = split_excluded(db, all_rows)
+        anchor_excluded = any(
+            i.kind in CHALLENGEABLE_KINDS
+            and i.verification_state == VerificationState.VERIFIED
+            for i in excluded
+        )
+        if not anchor_excluded:
+            requester = db.get(User, scan.requester_user_id)
+            if requester is not None:
+                account_hash = identifier_hash(IdentifierKind.EMAIL, requester.email)
+                anchor_excluded = bool(excluded_hashes(db, [account_hash]))
+        if anchor_excluded:
+            return GateResult(
+                GateDecision.REFUSE,
+                "subject_excluded: this identity asked to be excluded from Ayin "
+                "scans — that request is honored for everyone, including you.",
+            )
         return GateResult(
             GateDecision.REFUSE,
             "no_verified_anchor: verify control of at least one email or phone "
