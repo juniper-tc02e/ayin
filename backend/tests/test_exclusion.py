@@ -7,7 +7,6 @@
 - the exclusions table stores hashes only (asserted)
 """
 
-import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -60,7 +59,7 @@ def _exclude(client, sender, email):
 
 def test_full_exclusion_flow_purges_and_audits(client, sender, db, unique_email):
     _ready_user(client, sender, unique_email)
-    scan_id = client.post("/scans").json()["id"]
+    client.post("/scans")
     assert db.execute(select(Finding)).scalars().all()  # cached data exists
 
     client.cookies.clear()  # the public flow needs no session

@@ -25,7 +25,6 @@ from ayin.models import (
     Subject,
     User,
     VaultItem,
-    VaultKey,
 )
 from ayin.safety.audit import verify_chain
 from ayin.vault.store import DbVault

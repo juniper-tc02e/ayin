@@ -65,15 +65,15 @@ Goal: merge the user's own identifiers without namesake mixing, and turn finding
 
 Goal: the activation moment — a calm, sourced report — plus the rest of the safety floor.
 
-- [ ] **M3-1 — Exposure report UI.** Hero score + one-line plain-language verdict; "top 3 to fix now"; findings by category (what / where / captured-when / source / confidence / action); graceful empty/low-exposure states. Calm, not alarmist. (FR-REPORT-1, PRD §12.1, §23.4)
+- [x] **M3-1 — Exposure report UI.** Hero score + one-line plain-language verdict; "top 3 to fix now"; findings by category (what / where / captured-when / source / confidence / action); graceful empty/low-exposure states. Calm, not alarmist. (FR-REPORT-1, PRD §12.1, §23.4)
   - *Accept:* a completed scan renders the full report skeleton; low-exposure users see a reassuring state, not a blank page.
-- [ ] **M3-2 — Hardening checklist (read-only).** Per-finding steps (rotate password, enable MFA, revoke sessions, lock down profile) with expected score impact. Read-only in MVP; tracking is Phase 1. (FR-REM-3 lite)
+- [x] **M3-2 — Hardening checklist (read-only).** Per-finding steps (rotate password, enable MFA, revoke sessions, lock down profile) with expected score impact. Read-only in MVP; tracking is Phase 1. (FR-REM-3 lite)
   - *Accept:* each high-impact finding has actionable steps with an expected score delta.
-- [ ] **M3-3 — Abuse refusal + safety hold.** Refuse/hold scans matching abuse heuristics (minor-subject signals, victim-protection match, anomaly flags); log reason; appeal path. (FR-SCAN-5, FR-TS-2)
+- [x] **M3-3 — Abuse refusal + safety hold.** Refuse/hold scans matching abuse heuristics (minor-subject signals, victim-protection match, anomaly flags); log reason; appeal path. (FR-SCAN-5, FR-TS-2)
   - *Accept:* a scan tripping a heuristic is refused/held with a logged reason; false-positive appeal path exists.
-- [ ] **M3-4 — "Exclude me from Ayin" (public).** Verify identity → suppress as scan subject → purge cached data; honored on future scans; linked from the footer, not buried. (FR-TS-3, PRD §12.2 Flow D)
+- [x] **M3-4 — "Exclude me from Ayin" (public).** Verify identity → suppress as scan subject → purge cached data; honored on future scans; linked from the footer, not buried. (FR-TS-3, PRD §12.2 Flow D)
   - *Accept:* an excluded identity is suppressed in subsequent scans and its cached data purged; action audited.
-- [ ] **M3-5 — Data-subject rights + delete-everything + retention.** Self-service "delete my account and all data" (crypto-shred); retention timers auto-purge raw artifacts. (FR-TS-4)
+- [x] **M3-5 — Data-subject rights + delete-everything + retention.** Self-service "delete my account and all data" (crypto-shred); retention timers auto-purge raw artifacts. (FR-TS-4)
   - *Accept:* delete-everything removes/shreds all subject data and confirms; retention job purges raw artifacts on schedule.
 
 ## M4 — Polish + instrument (PRD weeks 9–11)

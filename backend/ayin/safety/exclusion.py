@@ -152,7 +152,9 @@ def excluded_hashes(db: Session, hashes: list[str]) -> set[str]:
     return set(rows)
 
 
-def split_excluded(db: Session, identifiers: list[Identifier]) -> tuple[list[Identifier], list[Identifier]]:
+def split_excluded(
+    db: Session, identifiers: list[Identifier]
+) -> tuple[list[Identifier], list[Identifier]]:
     """(allowed, excluded) partition of seed identifiers."""
     by_hash = {identifier_hash(i.kind, i.value_normalized): i for i in identifiers}
     excluded = excluded_hashes(db, list(by_hash))

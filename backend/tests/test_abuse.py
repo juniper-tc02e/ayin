@@ -20,13 +20,11 @@ from ayin.api.routes.scans import get_registry, get_vault
 from ayin.config import get_settings
 from ayin.connectors import ConnectorRegistry
 from ayin.connectors.fake import FakeConnector
-from ayin.models import AbuseSignal, AuditRecord, Identifier, Scan, Subject, User
+from ayin.models import AbuseSignal, AuditRecord, User
 from ayin.models.enums import (
     AbuseSignalKind,
     AbuseSignalSeverity,
     IdentifierKind,
-    ScanStatus,
-    VerificationState,
 )
 from ayin.models.protection import ProtectionEntry
 from ayin.safety.hashing import identifier_hash
