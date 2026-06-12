@@ -70,6 +70,18 @@ class Settings(BaseSettings):
     search_api_base_url: str = "https://api.search.brave.com/res/v1"
     broker_registry_path: str = "ayin/connectors/broker/registry.yaml"
 
+    # ── LLM orchestrator (Qwen Cloud / OpenAI-compatible) ────
+    # Disabled by default → the pipeline uses deterministic templates. Enable
+    # for the agentic path. Dev points QWEN_BASE_URL at a local Ollama (no key
+    # needed); prod points it at Qwen Cloud with QWEN_API_KEY — a one-variable
+    # swap. The LLM is an ASSIST only: safety gates and scoring never depend on
+    # it, and every generated claim is validated against a source finding.
+    llm_enabled: bool = False
+    qwen_base_url: str = "http://localhost:11434/v1"  # Ollama default; Qwen Cloud in prod
+    qwen_api_key: str = ""  # empty is fine for local Ollama
+    qwen_model: str = "qwen3:4b"  # dev default; a Qwen Cloud model id in prod
+    qwen_timeout_seconds: float = 30.0
+
     @property
     def sqlalchemy_url(self) -> str:
         """DATABASE_URL with the psycopg3 driver pinned for SQLAlchemy."""
