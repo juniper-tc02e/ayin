@@ -123,6 +123,9 @@ class FindingOut(BaseModel):
     corroboration_count: int = 1
     merged_sources: list = []
     conflicts: list = []
+    # B4: Qwen's gray-zone second opinion {verdict, evidence, model} — advice
+    # for the user's confirm/reject review only; rules stay the floor.
+    llm_opinion: dict | None = None
 
 
 class FindingsPage(BaseModel):
@@ -200,6 +203,10 @@ class ChecklistItemOut(BaseModel):
     steps: list[str]
     expected_score_delta: int
     effort: str
+    # B3: LLM-personalized rewrite of ``steps`` (citation-guarded, cached as
+    # RemediationTask rows). None when the LLM is disabled — the playbook
+    # steps above are always present and always the floor.
+    personalized_steps: list[str] | None = None
 
 
 class ChecklistOut(BaseModel):

@@ -403,6 +403,16 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
     from ayin.resolution import resolve_scan  # noqa: PLC0415 — avoid import cycle
 
     resolve_scan(db, scan)
+    # ER assist (B4): a second opinion on gray-zone matches for the user's
+    # confirm/reject review. Advice only — never moves a match decision
+    # (FR-ER-1); best-effort like every LLM touchpoint (ADR-0003).
+    try:
+        from ayin.resolution.llm_assist import annotate_gray_zone  # noqa: PLC0415
+
+        annotate_gray_zone(db, scan)
+    except Exception:
+        log.warning("ER assist failed — findings stand as the rules left them",
+                    exc_info=True)
     _transition(db, scan, ScanStatus.SCORING, actor=actor, event="scan.scoring")
     from ayin.scoring import compute_score  # noqa: PLC0415 — avoid import cycle
 

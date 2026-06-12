@@ -294,8 +294,12 @@ def get_checklist(
     subject: Subject = Depends(get_my_subject),
 ):
     """Read-only hardening checklist with honest expected score deltas
-    (FR-REM-3 lite). Credential items stay generic without step-up."""
+    (FR-REM-3 lite). Credential items stay generic without step-up. When the
+    LLM is enabled, items also carry citation-guarded personalized steps
+    (B3) — generated once from the non-elevated checklist and cached as
+    RemediationTask rows; the playbook steps remain the floor."""
     from ayin.remediation import build_checklist  # noqa: PLC0415
+    from ayin.remediation.llm_guidance import ensure_llm_guidance  # noqa: PLC0415
 
     scan = _owned_scan(db, subject, scan_id)
     step_up_token = request.headers.get("X-Ayin-Step-Up")
@@ -305,6 +309,7 @@ def get_checklist(
         else False
     )
     current_overall, items = build_checklist(db, scan, elevated=elevated)
+    guidance = ensure_llm_guidance(db, scan, settings)
     record_data_access(
         db, actor=user_actor(user.id), subject_id=subject.id,
         resource="checklist", purpose="self-view", scan_id=scan.id,
@@ -322,6 +327,7 @@ def get_checklist(
                 steps=i.steps,
                 expected_score_delta=i.expected_score_delta,
                 effort=i.effort,
+                personalized_steps=guidance.get(i.finding_id),
             )
             for i in items
         ],
@@ -404,6 +410,7 @@ def get_findings(
                     corroboration_count=f.corroboration_count,
                     merged_sources=f.merged_sources or [],
                     conflicts=(f.resolution or {}).get("conflicts", []),
+                    llm_opinion=(f.resolution or {}).get("llm_opinion"),
                 )
             )
 

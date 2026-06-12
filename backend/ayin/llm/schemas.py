@@ -123,3 +123,16 @@ class ERJudgment(BaseModel):
 
     verdict: ERVerdict
     evidence: list[str] = Field(default_factory=list)
+
+
+class ERJudgmentItem(ERJudgment):
+    """One per-finding judgment in a batched B4 response; ``finding_id`` is
+    citation-guarded like every other LLM reference to a finding."""
+
+    finding_id: str = Field(min_length=1)
+
+
+class ERAssistResponse(BaseModel):
+    """The model's full B4 response over the gray-zone candidates."""
+
+    items: list[ERJudgmentItem] = Field(default_factory=list)

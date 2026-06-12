@@ -31,12 +31,14 @@ What's done:
 
 What's NOT done (this is the actual handover):
 
-- [ ] No `LICENSE` file yet (attempts kept getting interrupted mid-write — see A1)
-- [ ] Repo is local-only: no GitHub remote, nothing pushed
-- [ ] Zero LLM/Qwen code anywhere in the codebase
+- [x] ~~No `LICENSE` file yet~~ — AGPL-3.0 committed (08da422), README license section added (642a57f)
+- [x] ~~Repo is local-only~~ — public at https://github.com/juniper-tc02e/ayin, `v0.1.0-mvp` tag set on the pre-Qwen baseline (A4)
+- [x] ~~Zero LLM/Qwen code~~ — **Workstream B is code-complete** (June 12): B1 grounded narrative (report route + Score-row cache + citation guard over claims/category summaries/top fixes), B2 agentic scan planner (tool-calling loop; gates stay code; every decision audited with reasoning), B3 personalized remediation (RemediationTask rows, checklist `personalized_steps`), B4 ER assist (`resolution["llm_opinion"]`, never moves a match decision). All dev on MockLLMClient — **the day-one real Qwen Cloud call has NOT happened yet**; do it first thing (enable `LLM_ENABLED=true` + point at free quota or local Ollama and run a scan).
 - [ ] No cloud deployment of any kind
 - [ ] Voucher form not yet submitted — it's blocked on the **Alibaba Cloud UID** field (16-digit account ID: log into the Alibaba Cloud console, hover the avatar top-right, "Account ID"). If there's no Alibaba/Qwen Cloud account yet, create one at qwencloud.com first.
 - [ ] No architecture diagram, no demo video, no submission text, no blog post
+
+Local test environment on the Windows machine (June 12): Python 3.13 can't run the suite (`pgserver` has no cp313 wheel) — a Python 3.12 venv lives at `%LOCALAPPDATA%\ayin-venv` with the backend installed editable + dev extras; run `pytest` from `backend/` with `AYIN_TEST_PGDATA=%LOCALAPPDATA%\ayin-test-pg`. `cryptography` + `pyyaml` are now declared in pyproject (were missing).
 
 ## Constraints that must survive the hackathon
 
