@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from ayin.llm import prompts
 from ayin.llm.citation_guard import GuardResult, validate_narrative
-from ayin.llm.client import LLMClient, LLMError, parse_into
+from ayin.llm.client import LLMClient, LLMError, complete_parsed
 from ayin.llm.schemas import MAX_TEXT, CategorySummary, Claim, LLMUsage, NarrativeDraft
 
 log = logging.getLogger("ayin.llm.narrative")
@@ -136,8 +136,9 @@ def generate_narrative(ctx: NarrativeContext, client: LLMClient | None) -> Narra
         return NarrativeResult(template_narrative(ctx), used_llm=False, guard=None)
     allowed = {f.finding_id for f in ctx.findings}
     try:
-        resp = client.complete(prompts.narrative_messages(_context_payload(ctx)))
-        draft = parse_into(resp.content, NarrativeDraft)
+        resp, draft = complete_parsed(
+            client, prompts.narrative_messages(_context_payload(ctx)), NarrativeDraft
+        )
     except LLMError as exc:
         log.warning("LLM narrative unavailable/invalid (%s) — using templates", exc)
         return NarrativeResult(template_narrative(ctx), used_llm=False, guard=None)

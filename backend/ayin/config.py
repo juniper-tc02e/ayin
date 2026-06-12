@@ -79,8 +79,17 @@ class Settings(BaseSettings):
     llm_enabled: bool = False
     qwen_base_url: str = "http://localhost:11434/v1"  # Ollama default; Qwen Cloud in prod
     qwen_api_key: str = ""  # empty is fine for local Ollama
-    qwen_model: str = "qwen3:4b"  # dev default; a Qwen Cloud model id in prod
+    # Dev default is a NON-thinking model: qwen3's thinking mode burns the
+    # token budget invisibly through OpenAI-compatible endpoints (Ollama /v1
+    # neither disables nor surfaces it — verified 2026-06-12). On Qwen Cloud
+    # use a commercial model (qwen-plus) or disable thinking via
+    # QWEN_EXTRA_BODY='{"enable_thinking": false}'.
+    qwen_model: str = "qwen2.5:3b"
     qwen_timeout_seconds: float = 30.0
+    # JSON object merged into every chat-completions request body — the seam
+    # for provider-specific knobs (e.g. DashScope's enable_thinking) without
+    # touching code. Empty = no extras.
+    qwen_extra_body: str = ""
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from ayin.llm import prompts
 from ayin.llm.citation_guard import GuardResult, validate_claims
-from ayin.llm.client import LLMClient, LLMError, parse_into
+from ayin.llm.client import LLMClient, LLMError, complete_parsed
 from ayin.llm.schemas import Claim, LLMUsage, RemediationPlan
 
 log = logging.getLogger("ayin.llm.remediation")
@@ -70,8 +70,9 @@ def generate_remediation(
         return RemediationResult({}, used_llm=False, guard=None)
     allowed = {i.finding_id for i in items}
     try:
-        resp = client.complete(prompts.remediation_messages(_context_payload(items)))
-        plan = parse_into(resp.content, RemediationPlan)
+        resp, plan = complete_parsed(
+            client, prompts.remediation_messages(_context_payload(items)), RemediationPlan
+        )
     except LLMError as exc:
         log.warning("LLM remediation unavailable/invalid (%s) — keeping playbook", exc)
         return RemediationResult({}, used_llm=False, guard=None)

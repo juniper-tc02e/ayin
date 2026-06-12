@@ -1,4 +1,4 @@
-"""One-shot LLM smoke test: the full self-scan pipeline against a REAL Qwen
+r"""One-shot LLM smoke test: the full self-scan pipeline against a REAL Qwen
 model — local Ollama by default, Qwen Cloud with env overrides. This is the
 ADR-0003 "make one real call early" de-risk, and a dry run of the demo flow
 (planner decisions visible in the audit log, grounded narrative, guard
@@ -6,6 +6,11 @@ verdicts).
 
 Fixture data only (FakeConnector — clearly fake seeds, no real sources, no
 real PII). Runs on a throwaway pgserver Postgres, like the test suite.
+
+Default model is qwen2.5:3b (non-thinking): qwen3's thinking mode burns the
+token budget invisibly through Ollama's OpenAI-compatible /v1 endpoint
+(verified 2026-06-12 — content comes back empty). On Qwen Cloud use a
+commercial model or QWEN_EXTRA_BODY='{"enable_thinking": false}'.
 
 Usage (PowerShell, from backend/):
   & "$env:LOCALAPPDATA\ayin-venv\Scripts\python.exe" scripts\llm_smoke.py
@@ -24,7 +29,7 @@ import uuid
 from datetime import datetime, timezone
 
 # ── env must be set before any ayin import (mirrors tests/conftest.py) ──
-_LOCAL = os.environ.get("LOCALAPPDATA") or "/tmp"
+_LOCAL = os.environ.get("LOCALAPPDATA") or "/tmp"  # noqa: S108 — dev-only throwaway pgdata
 _PGDATA = os.environ.get("AYIN_TEST_PGDATA", os.path.join(_LOCAL, "ayin-smoke-pg"))
 
 import pgserver  # noqa: E402
@@ -35,8 +40,8 @@ os.environ["APP_ENV"] = "test"
 os.environ["EMAIL_CONSOLE_FALLBACK"] = "true"
 os.environ.setdefault("LLM_ENABLED", "true")
 os.environ.setdefault("QWEN_BASE_URL", "http://localhost:11434/v1")
-os.environ.setdefault("QWEN_MODEL", "qwen3:4b")
-os.environ.setdefault("QWEN_TIMEOUT_SECONDS", "180")  # CPU inference is slow
+os.environ.setdefault("QWEN_MODEL", "qwen2.5:3b")  # non-thinking (see docstring)
+os.environ.setdefault("QWEN_TIMEOUT_SECONDS", "300")  # CPU inference is slow
 
 _BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _BACKEND)
@@ -64,7 +69,7 @@ from ayin.remediation.llm_guidance import ensure_llm_guidance  # noqa: E402
 from ayin.vault import NullVault  # noqa: E402
 
 settings = get_settings()
-print(f"== Ayin LLM smoke test ==")
+print("== Ayin LLM smoke test ==")
 print(f"endpoint: {settings.qwen_base_url}  model: {settings.qwen_model}")
 print(f"llm_enabled: {settings.llm_enabled}\n")
 

@@ -72,6 +72,35 @@ def parse_into(content: str, schema: type[BaseModelT]) -> BaseModelT:
         raise LLMResponseInvalid(f"LLM response did not match {schema.__name__}: {exc}") from exc
 
 
+def complete_parsed(
+    client: LLMClient,
+    messages: Sequence[ChatMessage],
+    schema: type[BaseModelT],
+    *,
+    attempts: int = 2,
+    temperature: float = DEFAULT_TEMPERATURE,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+) -> tuple[LLMResponse, BaseModelT]:
+    """complete() + parse_into() with bounded retry on MALFORMED output only
+    (the spec's retry-then-fallback, ADR-0003): malformed JSON is stochastic,
+    so one more attempt often lands; an UNREACHABLE endpoint is not retried —
+    that would stall the pipeline for another full timeout for nothing.
+    Returns (response, parsed); usage/model on the response are from the
+    successful attempt."""
+    last: LLMResponseInvalid | None = None
+    for attempt in range(1, attempts + 1):
+        resp = client.complete(messages, temperature=temperature, max_tokens=max_tokens)
+        try:
+            return resp, parse_into(resp.content, schema)
+        except LLMResponseInvalid as exc:
+            last = exc
+            log.warning(
+                "LLM output failed to parse (attempt %d/%d): %s", attempt, attempts, exc
+            )
+    assert last is not None  # attempts >= 1
+    raise last
+
+
 def _wire_message(m: ChatMessage) -> dict:
     """OpenAI-compatible message dict, including tool-calling framing (B2)."""
     out: dict = {"role": m.role.value, "content": m.content}
@@ -123,12 +152,16 @@ class QwenClient(LLMClient):
         model: str,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         transport: httpx.BaseTransport | None = None,
+        extra_body: dict | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._api_key = api_key
         self.model = model
         self._timeout = timeout_seconds
         self._transport = transport
+        # Provider-specific request knobs (e.g. DashScope's enable_thinking),
+        # merged into every request body. Core fields always win.
+        self._extra_body = dict(extra_body or {})
 
     def complete(
         self,
@@ -140,6 +173,7 @@ class QwenClient(LLMClient):
     ) -> LLMResponse:
         url = f"{self._base}/chat/completions"
         body: dict = {
+            **self._extra_body,
             "model": self.model,
             "messages": [_wire_message(m) for m in messages],
             "temperature": temperature,
@@ -224,9 +258,20 @@ def get_llm_client(settings: Settings | None = None) -> LLMClient | None:
     s = settings or get_settings()
     if not s.llm_enabled:
         return None
+    extra_body: dict = {}
+    if s.qwen_extra_body:
+        try:
+            parsed = json.loads(s.qwen_extra_body)
+            if isinstance(parsed, dict):
+                extra_body = parsed
+            else:
+                log.warning("QWEN_EXTRA_BODY is not a JSON object — ignoring")
+        except json.JSONDecodeError:
+            log.warning("QWEN_EXTRA_BODY is not valid JSON — ignoring")
     return QwenClient(
         base_url=s.qwen_base_url,
         api_key=s.qwen_api_key,
         model=s.qwen_model,
         timeout_seconds=s.qwen_timeout_seconds,
+        extra_body=extra_body,
     )

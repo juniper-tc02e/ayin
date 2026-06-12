@@ -14,6 +14,7 @@ from ayin.llm.client import (
     LLMUnavailable,
     MockLLMClient,
     QwenClient,
+    complete_parsed,
     get_llm_client,
     parse_into,
 )
@@ -39,6 +40,36 @@ def _completion(content):
 
 def test_factory_disabled_returns_none():
     assert get_llm_client(Settings(llm_enabled=False)) is None
+
+
+def test_extra_body_is_merged_but_core_fields_win():
+    """QWEN_EXTRA_BODY is the seam for provider knobs (e.g. DashScope's
+    enable_thinking) — merged into every request, never overriding ours."""
+    seen = {}
+
+    def handler(request):
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json=_completion("{}"))
+
+    client = QwenClient(
+        base_url="http://llm.test/v1", api_key="fake-key", model="qwen3:4b",
+        transport=httpx.MockTransport(handler),
+        extra_body={"enable_thinking": False, "model": "evil-override"},
+    )
+    client.complete(ONE_MSG)
+    assert seen["body"]["enable_thinking"] is False
+    assert seen["body"]["model"] == "qwen3:4b"  # core field wins
+
+
+def test_factory_parses_extra_body_and_ignores_garbage():
+    c = get_llm_client(
+        Settings(llm_enabled=True, qwen_extra_body='{"enable_thinking": false}')
+    )
+    assert c is not None and c._extra_body == {"enable_thinking": False}
+    c = get_llm_client(Settings(llm_enabled=True, qwen_extra_body="not json"))
+    assert c is not None and c._extra_body == {}
+    c = get_llm_client(Settings(llm_enabled=True, qwen_extra_body='["a list"]'))
+    assert c is not None and c._extra_body == {}
 
 
 def test_factory_enabled_builds_qwen_client():
@@ -125,3 +156,34 @@ def test_mock_client_serves_queued_then_default():
     assert m.complete(ONE_MSG).content == '{"a": 1}'
     assert m.complete(ONE_MSG).content == '{"b": 2}'
     assert len(m.calls) == 2
+
+
+def test_complete_parsed_retries_malformed_output_once():
+    """ADR-0003 retry-then-fallback: malformed JSON is stochastic — one
+    retry often lands (observed with qwen2.5:3b on the real smoke test)."""
+    m = MockLLMClient(responses=["{not json", '{"verdict":"v","claims":[]}'])
+    resp, draft = complete_parsed(m, ONE_MSG, NarrativeDraft)
+    assert draft.verdict == "v"
+    assert len(m.calls) == 2
+
+
+def test_complete_parsed_gives_up_after_attempts():
+    m = MockLLMClient(responses=["{bad", "{worse"])
+    with pytest.raises(LLMResponseInvalid):
+        complete_parsed(m, ONE_MSG, NarrativeDraft)
+    assert len(m.calls) == 2
+
+
+def test_complete_parsed_never_retries_unreachable_endpoint():
+    """A dead endpoint is not retried — that would stall the scan for a
+    second full timeout with no better odds."""
+    calls = {"n": 0}
+
+    class DownClient(MockLLMClient):
+        def complete(self, messages, **kwargs):
+            calls["n"] += 1
+            raise LLMUnavailable("fixture: endpoint down")
+
+    with pytest.raises(LLMUnavailable):
+        complete_parsed(DownClient(), ONE_MSG, NarrativeDraft)
+    assert calls["n"] == 1

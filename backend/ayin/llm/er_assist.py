@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 from ayin.llm import prompts
 from ayin.llm.citation_guard import GuardResult, validate_claims
-from ayin.llm.client import LLMClient, LLMError, parse_into
+from ayin.llm.client import LLMClient, LLMError, complete_parsed
 from ayin.llm.schemas import Claim, ERAssistResponse, ERJudgment, LLMUsage
 
 log = logging.getLogger("ayin.llm.er_assist")
@@ -79,8 +79,9 @@ def judge_gray_zone(
         return ERAssistResult({}, used_llm=False, guard=None)
     allowed = {c.finding_id for c in candidates}
     try:
-        resp = client.complete(prompts.er_assist_messages(_context_payload(candidates)))
-        parsed = parse_into(resp.content, ERAssistResponse)
+        resp, parsed = complete_parsed(
+            client, prompts.er_assist_messages(_context_payload(candidates)), ERAssistResponse
+        )
     except LLMError as exc:
         log.warning("LLM ER assist unavailable/invalid (%s) — no opinions", exc)
         return ERAssistResult({}, used_llm=False, guard=None)
