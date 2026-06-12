@@ -115,8 +115,10 @@ REMEDIATION_SYSTEM = (
     "deceive, hack, or violate a site's terms.\n"
     "4. Describe data exposure only — never judge the person. Never repeat "
     "secrets or credentials.\n"
-    'Respond with JSON only: {"items": [{"finding_id": "<id>", '
-    '"steps": ["<step>", ...]}]}.'
+    "Respond with JSON only — ONE object with exactly one key, \"items\"; "
+    "EVERY draft goes inside that array, nothing outside it:\n"
+    '{"items": [{"finding_id": "<id-1>", "steps": ["<step>", ...]}, '
+    '{"finding_id": "<id-2>", "steps": ["<step>", ...]}]}'
     + INJECTION_PIN
 )
 
