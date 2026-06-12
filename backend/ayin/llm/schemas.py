@@ -8,16 +8,37 @@ machine-checkable; ``Claim.finding_ids`` is what the citation guard validates.
 from __future__ import annotations
 
 import enum
+import re
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 # Bounds on model-written text/lists (defense in depth next to max_tokens):
 # a steered or buggy model can't persist unbounded content — an over-limit
 # response fails validation and the caller falls back to templates. Generous
 # enough that legitimate template-built drafts never hit them.
 MAX_TEXT = 2000
-BoundedText = Annotated[str, Field(min_length=1, max_length=MAX_TEXT)]
+
+# Invisible/control characters (bidi overrides, zero-width chars, C0/C1
+# controls except newline/tab) are stripped from every model-written string:
+# the UI renders these verbatim, and an unterminated RTL override could make
+# the text shown on screen differ from the text served and audited.
+_CONTROL_CHARS = re.compile(
+    "[\u0000-\u0008\u000b-\u001f\u007f-\u009f"  # C0/C1 controls (keep tab+newline)
+    "\u200b-\u200f"  # zero-width chars + LRM/RLM
+    "\u202a-\u202e"  # bidi embedding/override
+    "\u2066-\u2069"  # bidi isolates
+    "\ufeff]"  # BOM / zero-width no-break space
+)
+
+
+def _strip_control(value: str) -> str:
+    return _CONTROL_CHARS.sub("", value)
+
+
+BoundedText = Annotated[
+    str, AfterValidator(_strip_control), Field(min_length=1, max_length=MAX_TEXT)
+]
 
 
 class Role(str, enum.Enum):
@@ -69,9 +90,14 @@ class Claim(BaseModel):
 
 class CategorySummary(Claim):
     """One per-category prose line in the narrative. Guarded exactly like a
-    claim — it must cite the finding ids it summarizes."""
+    claim — it must cite the finding ids it summarizes. ``category`` is
+    model-written and renders as a UI label, so it is bounded and stripped
+    like any other model text (the UI additionally shows only known
+    categories)."""
 
-    category: str = Field(min_length=1)
+    category: Annotated[
+        str, AfterValidator(_strip_control), Field(min_length=1, max_length=64)
+    ]
 
 
 class NarrativeDraft(BaseModel):

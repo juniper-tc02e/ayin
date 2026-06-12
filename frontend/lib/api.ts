@@ -107,6 +107,33 @@ export type ScoreData = {
   contributing: ScoreContributor[];
 };
 
+/** One grounded narrative statement + the finding id(s) it rests on. */
+export type NarrativeClaim = {
+  text: string;
+  finding_ids: string[];
+};
+
+export type CategorySummary = NarrativeClaim & { category: string };
+
+export type ReportNarrative = {
+  verdict: string;
+  claims: NarrativeClaim[];
+  category_summaries: CategorySummary[];
+  top_fixes: NarrativeClaim[];
+  generated_by: "qwen" | "template";
+  model: string | null;
+  generated_at: string | null;
+};
+
+export type ReportData = {
+  scan_id: string;
+  overall: number;
+  subscores: Record<string, number>;
+  rubric_version: string;
+  computed_at: string;
+  narrative: ReportNarrative;
+};
+
 /** JSON fetch with session cookie included; throws ApiError on non-2xx. */
 export async function api<T>(
   path: string,

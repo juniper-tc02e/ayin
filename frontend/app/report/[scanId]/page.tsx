@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, Checklist, Scan, trackClient } from "@/lib/api";
 import ScorePanel from "@/components/ScorePanel";
+import NarrativePanel from "@/components/NarrativePanel";
 import FindingsList from "@/components/FindingsList";
 import HardeningChecklist from "@/components/HardeningChecklist";
 import DataRights from "@/components/DataRights";
@@ -17,6 +18,10 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [reviewVersion, setReviewVersion] = useState(0);
   const [missing, setMissing] = useState(false);
+  // When the narrative provides cited "top fixes", it owns the top-3 slot —
+  // rendering the checklist's top-3 card right below it would repeat the
+  // same three actions back-to-back.
+  const [narrativeOwnsTopFixes, setNarrativeOwnsTopFixes] = useState(false);
 
   useEffect(() => {
     api<Scan>(`/scans/${scanId}`)
@@ -71,6 +76,14 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
       {/* 1. Hero score + verdict */}
       <ScorePanel scanId={scanId} refreshKey={reviewVersion} />
 
+      {/* 1b. Grounded narrative — what the numbers mean, every statement
+          citing its source finding (B1/E2) */}
+      <NarrativePanel
+        scanId={scanId}
+        refreshKey={reviewVersion}
+        onLoaded={({ hasTopFixes }) => setNarrativeOwnsTopFixes(hasTopFixes)}
+      />
+
       {/* low-exposure: reassure, never a blank page */}
       {lowExposure && (
         <div className="card" style={{ borderColor: "var(--ok)" }}>
@@ -83,8 +96,11 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
         </div>
       )}
 
-      {/* 2. Top 3 to fix now */}
-      <HardeningChecklist scanId={scanId} refreshKey={reviewVersion} topOnly={3} />
+      {/* 2. Top 3 to fix now — owned by the narrative's "Where to start"
+          when it rendered one */}
+      {!narrativeOwnsTopFixes && (
+        <HardeningChecklist scanId={scanId} refreshKey={reviewVersion} topOnly={3} />
+      )}
 
       {/* 3. Findings by category (+ possible-match review) */}
       <h2 style={{ fontSize: "1.05rem", marginTop: "1.5rem" }}>What we found, by category</h2>
