@@ -1,0 +1,17 @@
+# Ayin — HTTPS front (Alibaba Cloud ECS). Caddy auto-provisions Let's
+# Encrypt when PUBLIC_HOST is a domain; for a bare ECS IP it falls back to
+# its internal CA (judges get TLS either way; a cheap domain is nicer).
+
+{$PUBLIC_HOST} {
+	encode gzip
+
+	# API under /api → FastAPI
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# everything else → Next.js
+	handle {
+		reverse_proxy web:3000
+	}
+}
