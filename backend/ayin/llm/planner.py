@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 from ayin.llm import prompts
 from ayin.llm.client import LLMClient
-from ayin.llm.schemas import ChatMessage, PlannerDecision, Role
+from ayin.llm.schemas import MAX_TEXT, ChatMessage, PlannerDecision, Role
 
 log = logging.getLogger("ayin.llm.planner")
 
@@ -139,13 +139,20 @@ class ScanPlanner:
             if not calls:
                 return None  # plain-text turn = the planner is done
             call = calls[0]  # one dispatch at a time (rule 1; extras ignored)
+            # tool_calls is raw provider passthrough — never trust its shape
+            if not isinstance(call, dict) or not isinstance(call.get("function"), dict):
+                self.invalid_proposals += 1
+                log.warning("planner returned a malformed tool call: %r", call)
+                continue
             call_id = str(call.get("id") or f"call-{self.steps_taken}")
-            fn = call.get("function") or {}
+            fn = call["function"]
             name = str(fn.get("name") or "")
             raw_args = fn.get("arguments") or "{}"
             try:
                 args = json.loads(raw_args)
             except (json.JSONDecodeError, TypeError):
+                args = {}
+            if not isinstance(args, dict):
                 args = {}
             # echo the assistant turn so the tool result can correlate to it
             self._messages.append(
@@ -170,7 +177,9 @@ class ScanPlanner:
                     {"refused": f"unknown tool {name!r} — choose one of the provided tools"}
                 )
                 continue
-            reasoning = str(args.get("reasoning") or "").strip() or "(no reasoning given)"
+            reasoning = (
+                str(args.get("reasoning") or "").strip() or "(no reasoning given)"
+            )[:MAX_TEXT]
             return PlannerDecision(connector_id=connector_id, reasoning=reasoning)
         return None
 

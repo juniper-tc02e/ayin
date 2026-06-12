@@ -131,7 +131,11 @@ def test_llm_citation_clean_draft_is_served(db, scanned):
     assert res.guard is not None and res.guard.ok
     assert res.model == "mock-qwen"
     assert res.usage is not None and res.usage.total_tokens > 0
-    assert res.draft.verdict.startswith("A fixture verdict")
+    # the model's cited sections are served...
+    assert res.draft.claims[0].text == "Fixture statement."
+    # ...but the verdict line (guard-exempt) is never model-steerable: it is
+    # always the deterministic band text.
+    assert res.draft.verdict == ctx.verdict
 
 
 def test_llm_invented_finding_id_is_rejected(db, scanned):
@@ -171,6 +175,46 @@ def test_llm_unsourced_top_fix_is_rejected(db, scanned):
     res = generate_narrative(ctx, MockLLMClient(responses=[unsourced]))
     assert res.used_llm is False
     assert res.guard is not None and len(res.guard.unsourced_claims) == 1
+
+
+def test_zero_findings_narrative_is_cached_and_never_calls_llm(db, monkeypatch):
+    """A clean scan gets a template-only narrative; the empty cache is final
+    even when an LLM appears later (regenerating an empty report buys
+    nothing — and must not burn tokens or spam the audit log)."""
+    from tests.test_orchestrator import SecondConnector, _gov
+
+    class EmptyConnector(SecondConnector):
+        id = "empty"
+        name = "Empty Fixture Source"
+        governance = _gov()
+
+        def fetch(self, seed):
+            return []
+
+        def normalize(self, seed, raw):
+            return []
+
+    reg = ConnectorRegistry()
+    reg.register(EmptyConnector)
+    reg.enable("empty", environment="test")
+    user = _mk_user(db, with_aux=False)
+    scan, result = engine.start_scan(
+        db, requester=user, settings=get_settings(), registry=reg,
+        vault=NullVault(), inline=True,
+    )
+    assert result.passed
+    score = db.execute(select(Score).where(Score.scan_id == scan.id)).scalar_one()
+    assert score.overall == 0
+    assert score.narrative is not None
+    assert score.narrative["claims"] == []
+    assert score.narrative_meta["findings_in_context"] == 0
+
+    client = MockLLMClient()
+    monkeypatch.setattr(report, "get_llm_client", lambda settings=None: client)
+    narrative, meta = get_or_generate_narrative(db, scan, score, get_settings())
+    assert narrative == score.narrative
+    assert client.calls == []  # cache served; the LLM was never asked
+    assert len(_narrative_events(db, scan.id)) == 1  # only the finalize-time event
 
 
 # ── Persistence, cache, and audit (DB wiring) ────────────────────────

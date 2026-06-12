@@ -157,6 +157,10 @@ def test_planned_scan_runs_in_proposed_order_and_audits(db, registry, monkeypatc
     assert all(d.detail["model"] == "mock-qwen" for d in decisions)
     assert not _events(db, scan.id, "scan.planner_rejected")
     assert not _events(db, scan.id, "scan.planner_fallback")
+    done = _events(db, scan.id, "scan.planner_done")
+    assert len(done) == 1
+    assert done[0].detail["reason"] == "complete"
+    assert done[0].detail["connectors_remaining"] == []
 
     # the proposed order is the executed order
     jobs = {
@@ -217,6 +221,81 @@ def test_out_of_scope_proposal_is_refused_and_audited(db, registry, monkeypatch)
     assert job.attempts == 1
     db.expire_all()
     assert db.get(Scan, scan.id).status == ScanStatus.DONE
+
+
+def test_planner_exhaustion_is_audited_and_swept(db, registry, monkeypatch):
+    """A planner that burns its strike budget re-proposing an already-run
+    connector is stopped, the giving-up is AUDITED (not silent), and the
+    deterministic sweep still completes the scan."""
+    client = MockLLMClient(
+        responses=[
+            _tc("run_fake", "breach first"),
+            _tc("run_fake", "again", call_id="call-2"),
+            _tc("run_fake", "again", call_id="call-3"),
+            _tc("run_fake", "again", call_id="call-4"),
+        ]
+    )
+    monkeypatch.setattr("ayin.llm.get_llm_client", lambda settings=None: client)
+    user = _mk_user(db)
+    scan, _ = engine.start_scan(
+        db, requester=user, settings=get_settings(), registry=registry,
+        vault=NullVault(), inline=True,
+    )
+    done = _events(db, scan.id, "scan.planner_done")
+    assert len(done) == 1
+    assert done[0].detail["reason"] == "exhausted"
+    assert done[0].detail["connectors_remaining"] == ["second"]
+    assert done[0].detail["invalid_proposals"] == MAX_INVALID_PROPOSALS
+    # coverage is a product guarantee: the sweep ran what the planner didn't
+    db.expire_all()
+    assert db.get(Scan, scan.id).status == ScanStatus.DONE
+    jobs = db.execute(
+        select(ConnectorJob).where(ConnectorJob.scan_id == scan.id)
+    ).scalars().all()
+    assert all(j.status == JobStatus.DONE for j in jobs)
+
+
+def test_retryable_failure_keeps_connector_proposable(db, monkeypatch):
+    """A transiently-failing job goes back to QUEUED and stays in the
+    pre-gated pending set — the planner may legitimately re-propose it."""
+    from tests.test_orchestrator import FlakyConnector
+
+    reg = ConnectorRegistry()
+    reg.register(FakeConnector)
+    reg.register(FlakyConnector)
+    reg.enable("fake", environment="test")
+    reg.enable("flaky", environment="test")
+    # 5 blips: the first job run exhausts run()'s 3 internal retries and
+    # fails at the JOB level (back to QUEUED); the re-proposed run succeeds.
+    FlakyConnector.fail_budget["n"] = 5
+
+    client = MockLLMClient(
+        responses=[
+            _tc("run_flaky", "try the flaky source"),
+            _tc("run_flaky", "it blipped — retry it", call_id="call-2"),
+            _tc("run_fake", "now the breach check", call_id="call-3"),
+            "done",
+        ]
+    )
+    monkeypatch.setattr("ayin.llm.get_llm_client", lambda settings=None: client)
+    user = _mk_user(db)
+    scan, _ = engine.start_scan(
+        db, requester=user, settings=get_settings(), registry=reg,
+        vault=NullVault(), inline=True,
+    )
+    # the retry was a legitimate proposal, not a refused one
+    assert not _events(db, scan.id, "scan.planner_rejected")
+    decisions = _events(db, scan.id, "scan.planner_decision")
+    assert [d.detail["connector"] for d in decisions] == ["flaky", "flaky", "fake"]
+    db.expire_all()
+    assert db.get(Scan, scan.id).status == ScanStatus.DONE
+    flaky_job = db.execute(
+        select(ConnectorJob).where(
+            ConnectorJob.scan_id == scan.id, ConnectorJob.connector_id == "flaky"
+        )
+    ).scalar_one()
+    assert flaky_job.status == JobStatus.DONE
+    assert flaky_job.attempts == 2
 
 
 def test_planner_failure_degrades_to_deterministic_dispatch(db, registry, monkeypatch):

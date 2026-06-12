@@ -385,6 +385,21 @@ def _persist_findings(
     return count
 
 
+def _audit_llm_step_failure(db: Session, scan: Scan, *, step: str, exc: Exception) -> None:
+    """An LLM-assist step failed and was absorbed (the assist is never
+    load-bearing) — but the attempt itself must not be audit-silent
+    (CLAUDE.md #7). Best-effort: a session too broken to take the audit row
+    is logged and left to the caller's own failure handling."""
+    try:
+        record_scan_event(
+            db, actor=system_actor(step), event_type=f"scan.{step}_generation_failed",
+            scan_id=scan.id, subject_id=scan.subject_id,
+            detail={"error": f"{type(exc).__name__}: {exc}"[:500]},
+        )
+    except Exception:
+        log.warning("could not audit %s failure", step, exc_info=True)
+
+
 def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
     """When all jobs are terminal: running → resolving → scoring → done.
     Resolution/scoring are M2 hooks (no-ops in M1). Partial results stand —
@@ -410,9 +425,10 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
         from ayin.resolution.llm_assist import annotate_gray_zone  # noqa: PLC0415
 
         annotate_gray_zone(db, scan)
-    except Exception:
+    except Exception as exc:
         log.warning("ER assist failed — findings stand as the rules left them",
                     exc_info=True)
+        _audit_llm_step_failure(db, scan, step="er_assist", exc=exc)
     _transition(db, scan, ScanStatus.SCORING, actor=actor, event="scan.scoring")
     from ayin.scoring import compute_score  # noqa: PLC0415 — avoid import cycle
 
@@ -425,9 +441,10 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
         from ayin.report import get_or_generate_narrative  # noqa: PLC0415
 
         get_or_generate_narrative(db, scan, score)
-    except Exception:
+    except Exception as exc:
         log.warning("narrative pre-generation failed — report will generate lazily",
                     exc_info=True)
+        _audit_llm_step_failure(db, scan, step="narrative", exc=exc)
     failed = [j.connector_id for j in jobs if j.status == JobStatus.FAILED]
     if failed:
         scan.error = f"partial: connectors failed: {', '.join(sorted(failed))}"
@@ -595,6 +612,23 @@ def _run_scan_planned(
         if status != JobStatus.QUEUED:  # QUEUED = retryable failure, stays pending
             pending.discard(decision.connector_id)
         planner.observe(_job_summary(db, scan, decision.connector_id, status))
+
+    # How the episode ended is part of the agent's audit trail (CLAUDE.md #7):
+    # "exhausted" (budget/strikes) and "model_stopped" hand the remaining
+    # connectors to the deterministic sweep — invisible in outcomes (coverage
+    # is guaranteed), so it must be visible in the log.
+    reason = (
+        "complete" if not pending
+        else ("exhausted" if planner.exhausted else "model_stopped")
+    )
+    record_scan_event(
+        db, actor=actor, event_type="scan.planner_done",
+        scan_id=scan.id, subject_id=scan.subject_id,
+        detail={"reason": reason, "steps_taken": planner.steps_taken,
+                "invalid_proposals": planner.invalid_proposals,
+                "connectors_remaining": sorted(pending)},
+    )
+    db.commit()
 
 
 def resume_stalled(

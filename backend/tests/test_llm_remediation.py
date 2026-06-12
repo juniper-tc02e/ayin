@@ -161,6 +161,32 @@ def test_rejected_plan_writes_no_rows_but_audits(db, scanned, monkeypatch):
     assert event.detail["invented_finding_ids"] == ["ghost-finding"]
 
 
+def test_partial_plan_personalizes_covered_findings_only(db, scanned, monkeypatch):
+    """The model answering for SOME findings is valid: covered findings get
+    guidance rows, the rest keep the playbook and are re-requested on the
+    next view (and only the missing ones)."""
+    _, items = build_checklist(db, scanned["scan"], elevated=False)
+    first, second = items[0].finding_id, items[1].finding_id
+    client = MockLLMClient(
+        responses=[
+            _plan({"finding_id": first, "steps": ["Partial step."]}),
+            _plan({"finding_id": second, "steps": ["Late step."]}),
+        ]
+    )
+    monkeypatch.setattr(llm_guidance, "get_llm_client", lambda settings=None: client)
+
+    guidance = ensure_llm_guidance(db, scanned["scan"], get_settings())
+    assert guidance == {first: ["Partial step."]}
+    assert len(db.execute(select(RemediationTask)).scalars().all()) == 1
+
+    # next view: only the uncovered finding is requested, then both serve
+    guidance = ensure_llm_guidance(db, scanned["scan"], get_settings())
+    assert set(guidance) == {first, second}
+    assert len(client.calls) == 2
+    requested = json.loads(client.calls[1][-1].content)["findings"]
+    assert [f["finding_id"] for f in requested] == [second]
+
+
 def test_model_context_never_sees_breach_detail(db, scanned, monkeypatch):
     plan, _ = _plan_for(db, scanned["scan"])
     client = MockLLMClient(responses=[plan])

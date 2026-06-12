@@ -178,3 +178,24 @@ def test_no_llm_leaves_findings_untouched(db, scanned):
     assert annotate_gray_zone(db, scanned["scan"], get_settings()) == {}
     db.refresh(scanned["possible"])
     assert "llm_opinion" not in (scanned["possible"].resolution or {})
+
+
+def test_below_floor_confidence_is_never_offered(db, scanned, monkeypatch):
+    """Below ER_ASSIST_MIN_CONFIDENCE the rules already say stranger/noise —
+    the model is not consulted at all (no call, no opinion, no audit)."""
+    from ayin.resolution.llm_assist import ER_ASSIST_MIN_CONFIDENCE
+
+    finding = scanned["possible"]
+    finding.match_confidence = ER_ASSIST_MIN_CONFIDENCE - 0.05
+    db.flush()
+    client = _JudgeEverythingClient()
+    monkeypatch.setattr(llm_assist, "get_llm_client", lambda settings=None: client)
+    assert annotate_gray_zone(db, scanned["scan"], get_settings()) == {}
+    assert client.calls == []
+    db.refresh(finding)
+    assert "llm_opinion" not in (finding.resolution or {})
+    assert not db.execute(
+        select(AuditRecord).where(
+            AuditRecord.event_type == "scan.er_assist_generated"
+        )
+    ).scalars().all()

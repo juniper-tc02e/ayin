@@ -8,8 +8,16 @@ machine-checkable; ``Claim.finding_ids`` is what the citation guard validates.
 from __future__ import annotations
 
 import enum
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Bounds on model-written text/lists (defense in depth next to max_tokens):
+# a steered or buggy model can't persist unbounded content — an over-limit
+# response fails validation and the caller falls back to templates. Generous
+# enough that legitimate template-built drafts never hit them.
+MAX_TEXT = 2000
+BoundedText = Annotated[str, Field(min_length=1, max_length=MAX_TEXT)]
 
 
 class Role(str, enum.Enum):
@@ -55,8 +63,8 @@ class Claim(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    text: str = Field(min_length=1)
-    finding_ids: list[str] = Field(default_factory=list)
+    text: BoundedText
+    finding_ids: list[str] = Field(default_factory=list, max_length=500)
 
 
 class CategorySummary(Claim):
@@ -73,10 +81,10 @@ class NarrativeDraft(BaseModel):
     ``category_summaries`` give the per-category read; ``top_fixes`` are the
     "top 3 to fix now", ranked by expected score impact."""
 
-    verdict: str = Field(min_length=1)
-    claims: list[Claim] = Field(default_factory=list)
-    category_summaries: list[CategorySummary] = Field(default_factory=list)
-    top_fixes: list[Claim] = Field(default_factory=list)
+    verdict: BoundedText
+    claims: list[Claim] = Field(default_factory=list, max_length=500)
+    category_summaries: list[CategorySummary] = Field(default_factory=list, max_length=50)
+    top_fixes: list[Claim] = Field(default_factory=list, max_length=10)
 
 
 class PlannerDecision(BaseModel):
@@ -87,9 +95,9 @@ class PlannerDecision(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    connector_id: str = Field(min_length=1)
-    seed_ref: str = Field(min_length=1, default="all")
-    reasoning: str = Field(min_length=1)
+    connector_id: str = Field(min_length=1, max_length=128)
+    seed_ref: str = Field(min_length=1, max_length=128, default="all")
+    reasoning: BoundedText
 
 
 class RemediationDraft(BaseModel):
@@ -98,15 +106,15 @@ class RemediationDraft(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    finding_id: str = Field(min_length=1)
-    steps: list[str] = Field(min_length=1)
+    finding_id: str = Field(min_length=1, max_length=128)
+    steps: list[BoundedText] = Field(min_length=1, max_length=30)
 
 
 class RemediationPlan(BaseModel):
     """The model's full B3 response: one draft per finding it chose to
     personalize. Every ``finding_id`` is citation-guarded."""
 
-    items: list[RemediationDraft] = Field(default_factory=list)
+    items: list[RemediationDraft] = Field(default_factory=list, max_length=200)
 
 
 class ERVerdict(str, enum.Enum):
@@ -122,17 +130,17 @@ class ERJudgment(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     verdict: ERVerdict
-    evidence: list[str] = Field(default_factory=list)
+    evidence: list[BoundedText] = Field(default_factory=list, max_length=20)
 
 
 class ERJudgmentItem(ERJudgment):
     """One per-finding judgment in a batched B4 response; ``finding_id`` is
     citation-guarded like every other LLM reference to a finding."""
 
-    finding_id: str = Field(min_length=1)
+    finding_id: str = Field(min_length=1, max_length=128)
 
 
 class ERAssistResponse(BaseModel):
     """The model's full B4 response over the gray-zone candidates."""
 
-    items: list[ERJudgmentItem] = Field(default_factory=list)
+    items: list[ERJudgmentItem] = Field(default_factory=list, max_length=200)

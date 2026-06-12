@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from ayin.llm import prompts
 from ayin.llm.citation_guard import GuardResult, validate_narrative
 from ayin.llm.client import LLMClient, LLMError, parse_into
-from ayin.llm.schemas import CategorySummary, Claim, LLMUsage, NarrativeDraft
+from ayin.llm.schemas import MAX_TEXT, CategorySummary, Claim, LLMUsage, NarrativeDraft
 
 log = logging.getLogger("ayin.llm.narrative")
 
@@ -81,14 +81,15 @@ def _template_category_summaries(views: list[FindingView]) -> list[CategorySumma
         vs = by_cat[cat]
         sources = sorted({v.source_name for v in vs})
         n = len(vs)
+        text = (
+            f"{n} {cat} exposure{'s' if n != 1 else ''} found "
+            f"(source{'s' if len(sources) != 1 else ''}: {', '.join(sources)})."
+        )
         out.append(
             CategorySummary(
                 category=cat,
-                text=(
-                    f"{n} {cat} exposure{'s' if n != 1 else ''} found "
-                    f"(source{'s' if len(sources) != 1 else ''}: {', '.join(sources)})."
-                ),
-                finding_ids=[v.finding_id for v in vs],
+                text=text[:MAX_TEXT],
+                finding_ids=[v.finding_id for v in vs][:500],
             )
         )
     return out
@@ -114,9 +115,13 @@ def template_narrative(ctx: NarrativeContext) -> NarrativeDraft:
     """Deterministic fallback: the band verdict, one claim per finding reusing
     the connector's non-sensitive summary, per-category counts, and top fixes
     ranked by honest score deltas. Always citation-clean by construction."""
-    claims = [Claim(text=f.summary, finding_ids=[f.finding_id]) for f in ctx.findings]
+    # slices keep template drafts inside the schema's model-abuse bounds even
+    # for unusually long connector summaries
+    claims = [
+        Claim(text=f.summary[:MAX_TEXT], finding_ids=[f.finding_id]) for f in ctx.findings
+    ]
     return NarrativeDraft(
-        verdict=ctx.verdict,
+        verdict=ctx.verdict[:MAX_TEXT],
         claims=claims,
         category_summaries=_template_category_summaries(ctx.findings),
         top_fixes=_template_top_fixes(ctx.findings),
@@ -145,4 +150,9 @@ def generate_narrative(ctx: NarrativeContext, client: LLMClient | None) -> Narra
             template_narrative(ctx), used_llm=False, guard=guard,
             model=resp.model, usage=resp.usage,
         )
+    # The verdict line is exempt from the citation guard (it summarizes the
+    # score, not a finding), so it must not be model-steerable: the report's
+    # most prominent line is always the deterministic band text. The model's
+    # voice lives in the cited sections only.
+    draft = draft.model_copy(update={"verdict": ctx.verdict})
     return NarrativeResult(draft, used_llm=True, guard=guard, model=resp.model, usage=resp.usage)
