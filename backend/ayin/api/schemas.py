@@ -192,6 +192,26 @@ class ReportOut(BaseModel):
     narrative: ReportNarrativeOut
 
 
+# ── Scan activity trail (E1) ──────────────────────────────────
+
+
+class ActivityEventOut(BaseModel):
+    """One allowlisted audit event, redacted to its per-event detail
+    allowlist. ``actor`` is a label ("user", "system:planner"), never an
+    internal id; hash-chain fields never leave the audit table."""
+
+    id: int
+    occurred_at: datetime
+    event_type: str
+    actor: str
+    detail: dict
+
+
+class ActivityOut(BaseModel):
+    scan_id: uuid.UUID
+    events: list[ActivityEventOut]
+
+
 # ── Hardening checklist (M3-2) ────────────────────────────────
 
 

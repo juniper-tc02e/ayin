@@ -15,6 +15,8 @@ from sqlalchemy import select
 from ayin.api.deps import CurrentUser, DbDep, SettingsDep
 from ayin.api.routes.identifiers import get_my_subject
 from ayin.api.schemas import (
+    ActivityEventOut,
+    ActivityOut,
     AppealIn,
     CategorySummaryOut,
     ChecklistItemOut,
@@ -34,8 +36,8 @@ from ayin.api.schemas import (
 from ayin.auth.tokens import SCOPE_STEP_UP, decode_token
 from ayin.connectors import ConnectorRegistry
 from ayin.connectors import registry as global_registry
-from ayin.models import ConnectorJob, Finding, Scan, Score, Subject
-from ayin.models.enums import FindingCategory, JobStatus
+from ayin.models import AuditRecord, ConnectorJob, Finding, Scan, Score, Subject
+from ayin.models.enums import ActorType, FindingCategory, JobStatus
 from ayin.orchestrator import engine
 from ayin.safety.audit import record_data_access, user_actor
 from ayin.safety.tos import require_tos
@@ -421,3 +423,114 @@ def get_findings(
     )
     db.commit()
     return FindingsPage(scan_id=scan.id, findings=out, locked_credential_findings=locked)
+
+
+# Activity-trail allowlist: event type → detail fields that may leave the
+# audit table. Double allowlist by design — an event type not listed here is
+# never served, and a detail field not listed here is dropped even on a
+# listed event, so new audit detail stays private by default. Deliberately
+# excluded: data.access (the user's own report reads would flood the feed),
+# cost_usd (internal cost telemetry), raw error/exception text (can embed
+# internal endpoints), invented_finding_ids (model-fabricated strings — the
+# guard_ok/unsourced counts tell that story), and the hash-chain fields.
+_ACTIVITY_EVENTS: dict[str, frozenset[str]] = {
+    # lifecycle
+    "scan.created": frozenset(),
+    "scan.gated": frozenset(),
+    "scan.refused": frozenset({"reason"}),
+    "scan.held": frozenset({"reason"}),
+    "scan.started": frozenset({"connectors", "seed_kinds"}),
+    "scan.completed": frozenset({"findings", "failed_connectors"}),
+    # connectors
+    "scan.connector_finished": frozenset({"connector", "findings", "attempt"}),
+    "scan.connector_retry": frozenset({"connector", "attempt"}),
+    "scan.connector_failed": frozenset({"connector", "attempt"}),
+    # agentic planner (B2) — reasoning is the model's own words: serve it as
+    # text for the user's own scan, but render it as untrusted content
+    "scan.planner_decision": frozenset(
+        {"connector", "seed_ref", "reasoning", "model", "step"}
+    ),
+    "scan.planner_rejected": frozenset({"connector", "reason", "reasoning", "model"}),
+    "scan.planner_fallback": frozenset(),
+    "scan.planner_done": frozenset(
+        {"reason", "steps_taken", "invalid_proposals", "connectors_remaining"}
+    ),
+    # resolution + scoring
+    "scan.resolved": frozenset(
+        {"groups", "duplicates_collapsed", "conflicts_flagged",
+         "auto_matched", "possible", "user_decisions_kept"}
+    ),
+    "scan.scored": frozenset({"overall", "rubric_version", "findings_counted"}),
+    # LLM generation steps (B1/B3/B4)
+    "scan.narrative_generated": frozenset(
+        {"used_llm", "model", "guard_ok", "tokens",
+         "findings_in_context", "unsourced_claim_count"}
+    ),
+    "scan.remediation_generated": frozenset(
+        {"used_llm", "model", "guard_ok", "tokens",
+         "items_generated", "items_requested"}
+    ),
+    "scan.er_assist_generated": frozenset(
+        {"used_llm", "model", "guard_ok", "tokens",
+         "candidates", "judgments", "verdict_counts"}
+    ),
+    "scan.narrative_generation_failed": frozenset(),
+    "scan.remediation_generation_failed": frozenset(),
+    "scan.er_assist_generation_failed": frozenset(),
+}
+
+
+def _actor_label(rec: AuditRecord) -> str:
+    """'user' for the requester's own actions, 'system:<component>' for
+    pipeline steps. Never an internal actor id."""
+    if rec.actor_type == ActorType.SYSTEM:
+        return f"system:{rec.actor_id}" if rec.actor_id else "system"
+    return rec.actor_type.value
+
+
+@router.get("/{scan_id}/activity", response_model=ActivityOut)
+def get_activity(
+    scan_id: uuid.UUID,
+    user: CurrentUser,
+    db: DbDep,
+    subject: Subject = Depends(get_my_subject),
+):
+    """The scan's activity trail (E1) — planner decisions with the model's
+    audited reasoning, pipeline lifecycle, and LLM generation/guard events,
+    served straight from the immutable audit log so the UI shows what
+    actually happened, not a reconstruction. Reading it is itself a
+    subject-data access and is audited like any other."""
+    scan = _owned_scan(db, subject, scan_id)
+    rows = db.execute(
+        select(AuditRecord)
+        .where(
+            AuditRecord.scan_id == scan.id,
+            # defense in depth on top of _owned_scan
+            AuditRecord.subject_id == subject.id,
+            AuditRecord.event_type.in_(list(_ACTIVITY_EVENTS)),
+        )
+        .order_by(AuditRecord.id.asc())
+    ).scalars().all()
+    record_data_access(
+        db, actor=user_actor(user.id), subject_id=subject.id,
+        resource="activity", purpose="self-view", scan_id=scan.id,
+        detail={"count": len(rows)},
+    )
+    db.commit()
+    return ActivityOut(
+        scan_id=scan.id,
+        events=[
+            ActivityEventOut(
+                id=r.id,
+                occurred_at=r.occurred_at,
+                event_type=r.event_type,
+                actor=_actor_label(r),
+                detail={
+                    k: v
+                    for k, v in (r.detail or {}).items()
+                    if k in _ACTIVITY_EVENTS[r.event_type]
+                },
+            )
+            for r in rows
+        ],
+    )
