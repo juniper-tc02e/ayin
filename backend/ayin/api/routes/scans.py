@@ -16,12 +16,16 @@ from ayin.api.deps import CurrentUser, DbDep, SettingsDep
 from ayin.api.routes.identifiers import get_my_subject
 from ayin.api.schemas import (
     AppealIn,
+    CategorySummaryOut,
     ChecklistItemOut,
     ChecklistOut,
     FindingOut,
     FindingsPage,
     JobOut,
     MessageOut,
+    NarrativeClaimOut,
+    ReportNarrativeOut,
+    ReportOut,
     ScanOut,
     ScanProgress,
     ScoreContributorOut,
@@ -230,6 +234,53 @@ def get_score(
         computed_at=score.computed_at,
         verdict=_verdict(score.overall),
         contributing=[ScoreContributorOut(**c) for c in score.contributing],
+    )
+
+
+@router.get("/{scan_id}/report", response_model=ReportOut)
+def get_report(
+    scan_id: uuid.UUID,
+    user: CurrentUser,
+    db: DbDep,
+    settings: SettingsDep,
+    subject: Subject = Depends(get_my_subject),
+):
+    """The grounded report narrative (B1): score + plain-language verdict,
+    per-category summaries, and "top fixes" — every statement citing the
+    finding id(s) it rests on. Written by Qwen when the LLM is enabled,
+    deterministic templates otherwise; the citation guard rejects any draft
+    referencing a finding that doesn't exist (CLAUDE.md #5)."""
+    from ayin.report import get_or_generate_narrative  # noqa: PLC0415
+
+    scan = _owned_scan(db, subject, scan_id)
+    score = db.execute(select(Score).where(Score.scan_id == scan.id)).scalar_one_or_none()
+    if score is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "No report yet — the scan may still be running."
+        )
+    narrative, meta = get_or_generate_narrative(db, scan, score, settings)
+    record_data_access(
+        db, actor=user_actor(user.id), subject_id=subject.id,
+        resource="report", purpose="self-view", scan_id=scan.id,
+    )
+    db.commit()
+    return ReportOut(
+        scan_id=scan.id,
+        overall=score.overall,
+        subscores=score.subscores,
+        rubric_version=score.rubric_version,
+        computed_at=score.computed_at,
+        narrative=ReportNarrativeOut(
+            verdict=narrative.get("verdict", ""),
+            claims=[NarrativeClaimOut(**c) for c in narrative.get("claims", [])],
+            category_summaries=[
+                CategorySummaryOut(**c) for c in narrative.get("category_summaries", [])
+            ],
+            top_fixes=[NarrativeClaimOut(**c) for c in narrative.get("top_fixes", [])],
+            generated_by="qwen" if meta.get("used_llm") else "template",
+            model=meta.get("model"),
+            generated_at=meta.get("generated_at"),
+        ),
     )
 
 

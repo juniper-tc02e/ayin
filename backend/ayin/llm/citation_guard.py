@@ -52,7 +52,10 @@ def validate_claims(claims: Sequence[Claim], allowed_ids: Iterable[str]) -> Guar
 
 
 def validate_narrative(draft: NarrativeDraft, allowed_ids: Iterable[str]) -> GuardResult:
-    """Validate every claim in a narrative draft. The ``verdict`` line is the
+    """Validate every grounded statement in a narrative draft — claims,
+    per-category summaries, and top fixes alike. The ``verdict`` line is the
     deterministic read of the (itself sourced) score and is not a per-finding
-    claim, so it is exempt; all ``claims`` must be grounded."""
-    return validate_claims(draft.claims, allowed_ids)
+    claim, so it is exempt; everything else must be grounded."""
+    return validate_claims(
+        [*draft.claims, *draft.category_summaries, *draft.top_fixes], allowed_ids
+    )

@@ -130,6 +130,13 @@ class Score(Base, UuidPkMixin):
     # [{finding_id, points, reason}] — every point traces to findings (FR-SCORE-1).
     contributing: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     computed_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    # Grounded report narrative (B1): the citation-guarded NarrativeDraft as
+    # JSON, cached per score computation; meta records generator (LLM vs
+    # template), model, guard outcome, and token spend. Non-sensitive by
+    # construction — credential findings enter the narrative context with
+    # their generic locked summary only (ayin.report).
+    narrative: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    narrative_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 class RemediationTask(Base, UuidPkMixin, CreatedAtMixin):

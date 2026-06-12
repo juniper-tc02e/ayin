@@ -72,6 +72,16 @@ def parse_into(content: str, schema: type[BaseModelT]) -> BaseModelT:
         raise LLMResponseInvalid(f"LLM response did not match {schema.__name__}: {exc}") from exc
 
 
+def _wire_message(m: ChatMessage) -> dict:
+    """OpenAI-compatible message dict, including tool-calling framing (B2)."""
+    out: dict = {"role": m.role.value, "content": m.content}
+    if m.tool_calls:
+        out["tool_calls"] = m.tool_calls
+    if m.tool_call_id:
+        out["tool_call_id"] = m.tool_call_id
+    return out
+
+
 class LLMClient(ABC):
     """Uniform LLM interface. Subclasses set ``model`` and implement complete()."""
 
@@ -131,7 +141,7 @@ class QwenClient(LLMClient):
         url = f"{self._base}/chat/completions"
         body: dict = {
             "model": self.model,
-            "messages": [{"role": m.role.value, "content": m.content} for m in messages],
+            "messages": [_wire_message(m) for m in messages],
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
@@ -171,13 +181,15 @@ class QwenClient(LLMClient):
 
 class MockLLMClient(LLMClient):
     """Deterministic, network-free client for tests and offline dev. Serves
-    queued ``responses`` in order, then ``default``. Records calls for asserts."""
+    queued ``responses`` in order, then ``default``. A response may be a plain
+    string (content) or a dict ``{"content": ..., "tool_calls": [...]}`` for
+    tool-calling turns (B2 planner). Records calls for asserts."""
 
     def __init__(
         self,
         *,
         model: str = "mock-qwen",
-        responses: Sequence[str] | None = None,
+        responses: Sequence[str | dict] | None = None,
         default: str = "{}",
     ) -> None:
         self.model = model
@@ -194,12 +206,16 @@ class MockLLMClient(LLMClient):
         tools: list[dict] | None = None,
     ) -> LLMResponse:
         self.calls.append(list(messages))
-        content = self._responses.pop(0) if self._responses else self._default
-        return LLMResponse(
-            content=content,
-            model=self.model,
-            usage=LLMUsage(prompt_tokens=10, completion_tokens=10, total_tokens=20),
-        )
+        item = self._responses.pop(0) if self._responses else self._default
+        usage = LLMUsage(prompt_tokens=10, completion_tokens=10, total_tokens=20)
+        if isinstance(item, dict):
+            return LLMResponse(
+                content=str(item.get("content") or ""),
+                model=self.model,
+                usage=usage,
+                tool_calls=list(item.get("tool_calls") or []),
+            )
+        return LLMResponse(content=item, model=self.model, usage=usage)
 
 
 def get_llm_client(settings: Settings | None = None) -> LLMClient | None:

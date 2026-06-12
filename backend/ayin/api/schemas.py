@@ -155,6 +155,40 @@ class AppealIn(BaseModel):
     message: str = Field(min_length=10, max_length=2000)
 
 
+# ── Grounded report narrative (B1) ────────────────────────────
+
+
+class NarrativeClaimOut(BaseModel):
+    """One narrative statement + the finding id(s) it rests on — the UI links
+    every claim to its source findings (sources, not assertions)."""
+
+    text: str
+    finding_ids: list[uuid.UUID]
+
+
+class CategorySummaryOut(NarrativeClaimOut):
+    category: str
+
+
+class ReportNarrativeOut(BaseModel):
+    verdict: str
+    claims: list[NarrativeClaimOut]
+    category_summaries: list[CategorySummaryOut]
+    top_fixes: list[NarrativeClaimOut]
+    generated_by: str  # "qwen" | "template"
+    model: str | None = None
+    generated_at: datetime | None = None
+
+
+class ReportOut(BaseModel):
+    scan_id: uuid.UUID
+    overall: int
+    subscores: dict
+    rubric_version: str
+    computed_at: datetime
+    narrative: ReportNarrativeOut
+
+
 # ── Hardening checklist (M3-2) ────────────────────────────────
 
 

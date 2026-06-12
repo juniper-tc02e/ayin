@@ -28,7 +28,9 @@ from ayin.llm.narrative import (
     generate_narrative,
     template_narrative,
 )
+from ayin.llm.planner import ConnectorTool, ScanPlanner, tool_name_for
 from ayin.llm.schemas import (
+    CategorySummary,
     ChatMessage,
     Claim,
     ERJudgment,
@@ -44,8 +46,10 @@ from ayin.llm.schemas import (
 __all__ = [
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_TEMPERATURE",
+    "CategorySummary",
     "ChatMessage",
     "Claim",
+    "ConnectorTool",
     "ERJudgment",
     "ERVerdict",
     "FindingView",
@@ -65,10 +69,12 @@ __all__ = [
     "QwenClient",
     "RemediationDraft",
     "Role",
+    "ScanPlanner",
     "generate_narrative",
     "get_llm_client",
     "parse_into",
     "template_narrative",
+    "tool_name_for",
     "validate_claims",
     "validate_narrative",
 ]

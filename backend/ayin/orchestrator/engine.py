@@ -406,7 +406,18 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
     _transition(db, scan, ScanStatus.SCORING, actor=actor, event="scan.scoring")
     from ayin.scoring import compute_score  # noqa: PLC0415 — avoid import cycle
 
-    compute_score(db, scan)
+    score = compute_score(db, scan)
+    # REPORT step (B1): pre-generate the grounded narrative so the report is
+    # ready the moment the user opens it. Best-effort — the LLM is an assist,
+    # never load-bearing (ADR-0003); any failure falls through to lazy
+    # generation at the report route.
+    try:
+        from ayin.report import get_or_generate_narrative  # noqa: PLC0415
+
+        get_or_generate_narrative(db, scan, score)
+    except Exception:
+        log.warning("narrative pre-generation failed — report will generate lazily",
+                    exc_info=True)
     failed = [j.connector_id for j in jobs if j.status == JobStatus.FAILED]
     if failed:
         scan.error = f"partial: connectors failed: {', '.join(sorted(failed))}"
@@ -449,14 +460,37 @@ def start_scan(
     if result.passed:
         dispatch_scan(db, scan, registry)
         if inline:
-            run_scan_inline(db, scan.id, registry, vault)
+            run_scan_inline(db, scan.id, registry, vault, settings)
     return scan, result
 
 
 def run_scan_inline(
-    db: Session, scan_id: uuid.UUID, registry: ConnectorRegistry, vault: VaultProtocol
+    db: Session, scan_id: uuid.UUID, registry: ConnectorRegistry, vault: VaultProtocol,
+    settings: Settings | None = None,
 ) -> None:
-    """Synchronous driver (dev default + tests). Celery is the async driver."""
+    """Synchronous driver (dev default + tests). Celery is the async driver.
+
+    When the LLM is enabled, a Qwen planner proposes the dispatch order and
+    reacts to intermediate results (B2, ADR-0003). The deterministic sweep
+    below is both the no-LLM path and the planner's safety net — full source
+    coverage is a product guarantee, not a model decision. (The Celery driver
+    keeps deterministic queue order; the planner applies to inline runs.)
+    """
+    from ayin.llm import get_llm_client  # noqa: PLC0415 — avoid import cycle
+
+    client = get_llm_client(settings)
+    if client is not None:
+        try:
+            _run_scan_planned(db, scan_id, registry, vault, client)
+        except Exception as exc:  # the LLM is never load-bearing (ADR-0003)
+            scan = db.get(Scan, scan_id)
+            record_scan_event(
+                db, actor=system_actor("planner"), event_type="scan.planner_fallback",
+                scan_id=scan_id, subject_id=scan.subject_id if scan else None,
+                detail={"reason": f"{type(exc).__name__}: {exc}"},
+            )
+            db.commit()
+            log.warning("scan planner failed — deterministic dispatch takes over: %s", exc)
     for _ in range(JOB_MAX_ATTEMPTS + 1):
         job_ids = db.execute(
             select(ConnectorJob.id).where(
@@ -468,6 +502,89 @@ def run_scan_inline(
         for jid in job_ids:
             run_connector_job(db, jid, registry, vault)
     finalize_scan_if_complete(db, scan_id)
+
+
+def _job_summary(db: Session, scan: Scan, connector_id: str, status: JobStatus) -> dict:
+    """Non-sensitive dispatch outcome fed back to the planner: counts by
+    category only — never finding payloads or identifier values."""
+    from sqlalchemy import func  # noqa: PLC0415
+
+    rows = db.execute(
+        select(Finding.category, func.count())
+        .where(Finding.scan_id == scan.id, Finding.source == connector_id)
+        .group_by(Finding.category)
+    ).all()
+    return {
+        "connector": connector_id,
+        "status": status.value,
+        "findings_by_category": {
+            (cat.value if hasattr(cat, "value") else str(cat)): int(n) for cat, n in rows
+        },
+    }
+
+
+def _run_scan_planned(
+    db: Session, scan_id: uuid.UUID, registry: ConnectorRegistry, vault: VaultProtocol,
+    client,
+) -> None:
+    """One planner episode over the scan's PRE-GATED job set (B2).
+
+    The planner proposes; this function validates each proposal against the
+    jobs that gating already approved and refuses anything else — the LLM
+    cannot widen scope or bypass a gate (CLAUDE.md #7). Every accepted
+    decision and every refusal is audited with the model's reasoning.
+    """
+    from ayin.llm.planner import ConnectorTool, ScanPlanner  # noqa: PLC0415
+
+    scan = db.get(Scan, scan_id)
+    if scan is None or scan.status != ScanStatus.RUNNING:
+        return
+    jobs = {
+        j.connector_id: j
+        for j in db.execute(
+            select(ConnectorJob).where(ConnectorJob.scan_id == scan_id)
+        ).scalars()
+    }
+    pending = {cid for cid, j in jobs.items() if j.status == JobStatus.QUEUED}
+    if not pending:
+        return
+    identifiers = eligible_seed_identifiers(db, scan.subject_id)
+    seed_kinds = sorted({i.kind.value for i in identifiers})
+    tools = [ConnectorTool.from_connector(registry.get_class(cid)) for cid in sorted(pending)]
+    planner = ScanPlanner(client, tools, seed_kinds=seed_kinds)
+    actor = system_actor("planner")
+
+    while pending:
+        decision = planner.propose()  # raises LLMError → caller falls back
+        if decision is None:
+            break
+        if decision.connector_id not in pending:
+            # Outside the pre-gated set (already ran, or never approved) —
+            # refused, audited, never executed.
+            record_scan_event(
+                db, actor=actor, event_type="scan.planner_rejected",
+                scan_id=scan.id, subject_id=scan.subject_id,
+                detail={"connector": decision.connector_id,
+                        "reason": "not in the pre-gated pending job set",
+                        "reasoning": decision.reasoning, "model": client.model},
+            )
+            db.commit()
+            planner.reject(
+                f"connector {decision.connector_id!r} is not available for this scan"
+            )
+            continue
+        record_scan_event(
+            db, actor=actor, event_type="scan.planner_decision",
+            scan_id=scan.id, subject_id=scan.subject_id,
+            detail={"connector": decision.connector_id, "seed_ref": decision.seed_ref,
+                    "reasoning": decision.reasoning, "model": client.model,
+                    "step": planner.steps_taken},
+        )
+        db.commit()
+        status = run_connector_job(db, jobs[decision.connector_id].id, registry, vault)
+        if status != JobStatus.QUEUED:  # QUEUED = retryable failure, stays pending
+            pending.discard(decision.connector_id)
+        planner.observe(_job_summary(db, scan, decision.connector_id, status))
 
 
 def resume_stalled(
