@@ -8,6 +8,7 @@ import ScorePanel from "@/components/ScorePanel";
 import NarrativePanel from "@/components/NarrativePanel";
 import FindingsList from "@/components/FindingsList";
 import HardeningChecklist from "@/components/HardeningChecklist";
+import { ActivityTrailCard } from "@/components/PlannerTrail";
 import DataRights from "@/components/DataRights";
 import IntentCTA from "@/components/IntentCTA";
 
@@ -143,7 +144,10 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
         hasBrokerFindings={(checklist?.items ?? []).some((i) => i.category === "broker")}
       />
 
-      {/* 6. Your data & rights */}
+      {/* 6. How Ayin ran this scan — the agentic trail from the audit log (E5) */}
+      <ActivityTrailCard scanId={scanId} />
+
+      {/* 7. Your data & rights */}
       <DataRights />
     </main>
   );

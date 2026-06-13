@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, ApiError, FindingsPage, Scan } from "@/lib/api";
+import { Activity, ActivityEvent, api, ApiError, FindingsPage, Scan } from "@/lib/api";
 import FindingsList from "@/components/FindingsList";
+import PlannerTrail from "@/components/PlannerTrail";
 import ScorePanel from "@/components/ScorePanel";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -16,6 +17,8 @@ const STATUS_LABEL: Record<string, string> = {
   held: "Held for review",
 };
 
+const ACTIVE_STATUSES = ["queued", "gated", "running", "resolving", "scoring"];
+
 export default function ScanPanel() {
   const [scans, setScans] = useState<Scan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -23,22 +26,37 @@ export default function ScanPanel() {
   const [busy, setBusy] = useState(false);
   const [reviewVersion, setReviewVersion] = useState(0);
   const [partial, setPartial] = useState<FindingsPage | null>(null);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // last (scan, progress) we fetched partial findings for — so we don't
+  // re-read /findings every 2s tick (that endpoint is audited; each read
+  // takes the audit hash-chain lock). Fetch only when progress advances.
+  const partialSigRef = useRef<string>("");
 
   const refresh = useCallback(() => {
     api<Scan[]>("/scans")
       .then((rows) => {
         setScans(rows);
-        const active = rows.find((s) =>
-          ["queued", "gated", "running", "resolving", "scoring"].includes(s.status)
-        );
+        const active = rows.find((s) => ACTIVE_STATUSES.includes(s.status));
         if (active) {
-          // partial results persist per connector job — stream them in
-          api<FindingsPage>(`/scans/${active.id}/findings`)
-            .then(setPartial)
-            .catch(() => {});
+          // Self-start the poll loop whenever a scan is in flight — this also
+          // restarts it after a mid-scan page reload (the mount effect calls
+          // refresh once; without this the panel would freeze). Only while the
+          // tab is visible, so backgrounded tabs don't keep polling.
+          if (!pollRef.current && document.visibilityState === "visible") {
+            pollRef.current = setInterval(refresh, 2000);
+          }
+          // Partial results change only as connector jobs finish — fetch on a
+          // progress transition, not every tick, to avoid an audited /findings
+          // read each poll.
+          const sig = `${active.id}:${active.progress.jobs_done}:${active.progress.jobs_failed}`;
+          if (sig !== partialSigRef.current) {
+            partialSigRef.current = sig;
+            api<FindingsPage>(`/scans/${active.id}/findings`).then(setPartial).catch(() => {});
+          }
         } else {
           setPartial(null);
+          partialSigRef.current = "";
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
@@ -55,9 +73,23 @@ export default function ScanPanel() {
     };
   }, [refresh]);
 
-  function startPolling() {
-    if (!pollRef.current) pollRef.current = setInterval(refresh, 2000);
-  }
+  // Pause the liveness poll while the tab is hidden (no point auditing reads
+  // nobody is watching); resume — and self-restart if a scan is active — on
+  // return.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      } else {
+        refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [refresh]);
 
   async function startScan() {
     setBusy(true);
@@ -65,8 +97,7 @@ export default function ScanPanel() {
     try {
       const scan = await api<Scan>("/scans", { method: "POST" });
       setSelected(scan.id);
-      refresh();
-      startPolling();
+      refresh(); // self-starts polling when the new scan is still active
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.message.startsWith("no_verified_anchor")) {
@@ -83,6 +114,41 @@ export default function ScanPanel() {
   }
 
   const selectedScan = scans.find((s) => s.id === selected) ?? scans[0];
+  const selectedId = selectedScan?.id ?? null;
+  // Signature of what the activity feed depends on — fetch /activity only when
+  // status or progress actually changes (each read takes the audit hash-chain
+  // lock + writes a record), not on every 2s liveness poll.
+  const activitySig = selectedScan
+    ? `${selectedScan.status}:${selectedScan.progress.jobs_done}:${selectedScan.progress.jobs_failed}`
+    : "";
+  // Tracks which scan the rendered trail belongs to, so we clear it the moment
+  // a different scan is selected (and never show the prior scan's trail under
+  // the new one) — but NOT on a same-scan progress transition, which would
+  // make the live trail flicker.
+  const activityScanRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setActivity([]);
+      activityScanRef.current = null;
+      return;
+    }
+    if (activityScanRef.current !== selectedId) {
+      setActivity([]); // switched scans — drop the old trail before refetch
+      activityScanRef.current = selectedId;
+    }
+    let stale = false;
+    api<Activity>(`/scans/${selectedId}/activity`)
+      .then((a) => {
+        if (!stale) setActivity(a.events);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+    // activitySig drives the transition-gated refetch; selectedId switches scan.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, activitySig]);
 
   return (
     <div className="card">
@@ -137,6 +203,18 @@ export default function ScanPanel() {
               ))}
             </div>
           )}
+
+          {/* E5: the agent's activity trail — its source-ordering reasoning,
+              the gates, and what Qwen wrote, from this scan's audit log */}
+          {activity.length > 0 && (
+            <div style={{ marginTop: "0.75rem" }}>
+              <h3 className="dim" style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0, fontWeight: 600 }}>
+                Agent activity
+              </h3>
+              <PlannerTrail events={activity} />
+            </div>
+          )}
+
           {["running", "resolving", "scoring"].includes(selectedScan.status) && partial && (
             <p className="dim" style={{ fontSize: "0.85rem", margin: "0.5rem 0 0" }}>
               Partial results streaming in: {partial.findings.length} finding

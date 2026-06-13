@@ -143,6 +143,22 @@ export type ReportData = {
   narrative: ReportNarrative;
 };
 
+/** One allowlisted, redacted audit event from GET /scans/{id}/activity (E1).
+ * detail is per-event-allowlisted server-side; treat its values as untrusted
+ * model/connector-derived data and render strictly as text. */
+export type ActivityEvent = {
+  id: number;
+  occurred_at: string;
+  event_type: string;
+  actor: string;
+  detail: Record<string, unknown>;
+};
+
+export type Activity = {
+  scan_id: string;
+  events: ActivityEvent[];
+};
+
 /** JSON fetch with session cookie included; throws ApiError on non-2xx. */
 export async function api<T>(
   path: string,
