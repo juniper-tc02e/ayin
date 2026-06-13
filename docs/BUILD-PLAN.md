@@ -117,7 +117,186 @@ Any non-self scan (T1–T3), org accounts, SSO, API · automated broker removal,
 
 All milestones above are complete. The path from code-complete to a measured
 private beta — deployment, backend hardening, frontend/brand, and the beta
-program — is sequenced in [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md).
+program — is sequenced in [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md). The first
+post-beta build phase — **Agentic multi-source self-scan** — is sequenced
+below.
+
+---
+
+# Phase 2 — Agentic multi-source self-scan ("SuperAyin")
+
+Extends the MVP's agentic scan planner (B2, [`ADR-0003`](adr/0003-qwen-llm-integration.md))
+from the three MVP sources to a fleet of **sourced public-records connectors**,
+and gives it a **pivot graph** — a finding on one source yields a new *sourced*
+fact that seeds another — so the scan chases the long tail of a person's own
+exposure. This is the PRD's Phase 2 ("public records sources … GDPR/EU launch")
+made concrete. Data model: [`ADR-0005`](adr/0005-pivot-graph-data-model.md).
+
+**Prerequisites:** MVP go/no-go passed (above) and the private beta run
+([`LAUNCH-PLAN.md`](LAUNCH-PLAN.md)); each new source carries counsel sign-off
+before production enablement.
+
+**This phase changes the source count, not the trust model.** The four design
+rules it rests on are *already enforced by the MVP* and do not loosen:
+
+- **Self-only, verified.** `Scan.tier`/`purpose` stay pinned to `T0_SELF`/`self`
+  by DB CHECK; every pivot-derived identifier is a candidate fact *about the
+  verified subject*, gated by the same verification + visibility rules. No
+  third-party scanning. (CLAUDE.md #1)
+- **Sources, not assertions.** The planner may infer *which* sources/edges to
+  check; it never authors a fact. The citation guard + connector contract keep
+  every finding and every pivot edge sourced. (CLAUDE.md #5)
+- **Candidate vs finding.** Weak matches surface as `POSSIBLE` candidates the
+  user confirms; the scorer counts only `AUTO_MATCHED`/`CONFIRMED`. (FR-ER-2)
+- **Fetch-then-discard + governed.** Sensitive derived values go to the vault;
+  raw artifacts purge on the retention timer; every source carries a
+  `SourceGovernance` record. (PRD §10.7, §11.4)
+
+Milestone prefix `S` = SuperAyin. Status legend as above.
+
+> **Doc-debt note:** several tickets reference capabilities the PRD §9 does not
+> yet enumerate (capability manifest, pivot graph, candidate lifecycle,
+> jurisdiction routing, planner source-selection). Open the corresponding new
+> FRs in the PRD before building each — flagged inline as *(new FR)*.
+
+## S1 — Capability + jurisdiction foundation
+
+Goal: let the planner choose *among many* sources, and make every source declare
+where it is lawful to use — so international expansion is a data change, not a
+code change.
+
+- [ ] **S1-1 — Connector capability manifest.** Extend the connector contract so
+  each source declares the inputs it accepts, the context it needs, the output
+  categories it returns, and its COGS/latency class. (FR-DISC-4 extension)
+  - *Accept:* the planner can enumerate capabilities without instantiating a
+    connector; a source missing a manifest cannot register.
+- [ ] **S1-2 — Jurisdiction + legal-basis routing.** Add `jurisdiction` to
+  `Identifier` and `SourceGovernance`; filter candidate sources by the subject's
+  jurisdiction and the source's lawful-use basis (e.g., the EU "publicly
+  accessible ≠ lawfully reusable" rule). *(new FR — add to PRD §11)*
+  - *Accept:* a US-only source is never proposed for an EU-only subject; each
+    source's legal basis per jurisdiction is recorded and auditable.
+
+## S2 — Pivot graph (data model + resolution)
+
+Goal: represent and walk cross-source linkage without inventing facts or merging
+namesakes. Per [`ADR-0005`](adr/0005-pivot-graph-data-model.md).
+
+- [ ] **S2-1 — Pivot-graph schema.** Add the `pivot_links` table (sourced, typed
+  edges) and `correlation_group_id` on `Finding`; additive migration; no change
+  to `Finding`/`Score` semantics. *(new FR)*
+  - *Accept:* migration applies cleanly; every `PivotLink` row carries source +
+    captured_at + confidence + hop_depth; no edge can exist without a source.
+- [ ] **S2-2 — Finding→seed materialization (bounded).** Promote a pivot edge to
+  a new seed only above the seed-promotion threshold *and* attached to the
+  verified subject (auto-match) or user-confirmed; hop-depth cap, per-scan pivot
+  budget, cycle guard. (FR-ER-1)
+  - *Accept:* a below-threshold edge never auto-traverses; an unverifiable-seed
+    namesake (≤ 0.65) never silently seeds a chain; traversal stops at the cap.
+- [ ] **S2-3 — Cross-source confidence aggregation.** Combine confidence across
+  corroborating sources within a correlation group (independent sources raise it;
+  conflicts are flagged, not merged). (FR-ER-2)
+  - *Accept:* three sources agreeing raise aggregate confidence; a conflict is
+    surfaced for resolution rather than silently collapsed.
+- [ ] **S2-4 — Multi-hop false-merge QA.** Extend the M4-3 findings-accuracy /
+  false-merge harness with multi-hop pivot cases; **this gates S5.** (PRD §13.7)
+  - *Accept:* the harness reports precision + false-merge rate over pivot chains;
+    the ≥ 90% precision floor holds before any fleet source is enabled.
+
+## S3 — Candidate lifecycle + review
+
+Goal: make the long tail safe to chase — weak, pivot-derived matches are
+reviewable candidates, never scored until the user confirms.
+
+- [ ] **S3-1 — Candidate lifecycle.** Drive pivot-derived weak matches through
+  `POSSIBLE → CONFIRMED | REJECTED` (reusing `match_status`); confirm/reject
+  feeds entity resolution; expiry for stale candidates. (FR-ER-2)
+  - *Accept:* a candidate never enters the score; confirming it re-runs scoring;
+    rejecting it suppresses it and informs future pivots.
+- [ ] **S3-2 — Candidate audit + score projection.** New audit events
+  (`scan.candidate_generated`, `scan.pivot_proposed` / `scan.pivot_materialized`)
+  with source + reasoning; a "if you confirm this, your score becomes ~X"
+  projection. (FR-TS-1, FR-SCORE-1)
+  - *Accept:* every candidate and pivot decision is on the activity trail with
+    its source; the projection matches a recompute.
+
+## S4 — Planner extension (agentic core, gated)
+
+Goal: the planner chooses sources and pivots intelligently under budget/legal
+constraints — and is tested for bias. Extends B2.
+
+- [ ] **S4-1 — Source selection + pivot proposals.** The planner ranks candidate
+  sources (capability fit, jurisdiction, COGS, counsel status) and proposes the
+  next pivot among *materialized* edges; gates + budgets stay code; the
+  deterministic fallback is preserved. (ADR-0003 B2 extension)
+  - *Accept:* the planner skips irrelevant/unlawful sources with logged
+    reasoning; if it stalls, the deterministic path still completes the scan.
+- [ ] **S4-2 — Async dispatch + latency budget.** Parallel job dispatch with
+  per-source timeouts so slow international sources don't block; fallback takes
+  over on budget exhaustion. (FR-SCAN-1)
+  - *Accept:* a 10s source never stalls the scan past its budget; partial results
+    still resolve and score.
+- [ ] **S4-3 — Planner fairness/bias suite.** Assert source-selection + pivot
+  decisions are uniform across seed properties (name, email, phone, username) and
+  that any disparate treatment is intentional + audited. *(new FR)*
+  - *Accept:* the suite fails on biased selection; CI-gated before S5.
+
+## S5 — Connector fleet (sourced public records)
+
+Goal: add sources in risk order, each behind the existing contract + governance
+record + counsel sign-off. **Strong-identifier first; court/criminal last.**
+
+- [ ] **S5-1 — Strong-identifier sources.** Sanctions/PEP screening (false-
+  positive exposure is a real harm), business/corporate registry, FEC/disclosure,
+  professional licensing, niche federal (patents, FAA/FCC). (FR-DISC-4, PRD §11.4)
+  - *Accept:* each registers with a complete governance record + counsel flag;
+    each finding cites source + captured-at + confidence.
+- [ ] **S5-2 — Medium-match sources.** Property/land records and voter rolls
+  *where lawful and commercially permitted*, keyed to the verified address.
+  (FR-DISC-4)
+  - *Accept:* a source whose ToS forbids the use is not enabled; jurisdiction
+    routing (S1-2) applies.
+- [ ] **S5-3 — Court/records (last, gated).** Civil/bankruptcy/registry-style
+  public records, surfaced only as candidates behind identity-confirm + the
+  candidate gate; criminal-record use stays within the FCRA bright line. *(new
+  FR + counsel ADR required)*
+  - *Accept:* nothing here scores without user confirmation; no eligibility /
+    character output is produced; a counsel ADR is recorded before enablement.
+    (CLAUDE.md #2)
+- [ ] **S5-4 — International sources.** Per-jurisdiction connectors (EU/UK/APAC)
+  with legal basis in their governance record; GDPR DSAR surfaced where the
+  subject is EU. (PRD Phase 2)
+  - *Accept:* an international source carries its jurisdiction + legal basis;
+    special-category data (e.g., EU criminal) is not collected even when public.
+
+## S6 — Surface + scale
+
+Goal: render candidates, the agent's reasoning, and source governance — and hold
+up under hundreds of findings.
+
+- [ ] **S6-1 — Candidate review + agent-reasoning UI.** A "Candidates for your
+  review" card distinct from findings; a trace of which sources the agent
+  evaluated and why. (FR-REPORT-1)
+  - *Accept:* candidates are visually distinct from scored findings; confirm /
+    reject is one tap; the agent's source choices are legible.
+- [ ] **S6-2 — Source governance disclosure.** An "about these sources" view:
+  per-source legal basis, access method, data classes, captured-at. (PRD §11.4)
+  - *Accept:* every source shown in a report links to its governance record.
+- [ ] **S6-3 — Scale the report.** Pagination/streaming + filtering (category,
+  sensitivity, source, corroboration) for 100s of findings; fetch-then-discard
+  retention messaging. (FR-REPORT-1)
+  - *Accept:* a 300-finding report stays responsive; the UI states what is kept
+    vs discarded and when.
+
+### Phase 2 guardrails (do not relax)
+
+T0 self-only (DB CHECK) · gates run as code before dispatch · planner proposes,
+never bypasses · citation guard (no invented findings or edges) · audit
+hash-chain on every scan, pivot, and data access · `counsel_signoff` before any
+source goes live · verification before fan-out · candidates never scored until
+confirmed. Phase 2 scales coverage, not the trust model.
+
+---
 
 ## Optional pre-MVP de-risker (PRD §13.9)
 
