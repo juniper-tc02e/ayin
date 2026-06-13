@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, Finding, FindingsPage } from "@/lib/api";
+import { api, Finding, FindingsPage, LlmOpinion } from "@/lib/api";
 import StepUpModal from "@/components/StepUpModal";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -223,6 +223,7 @@ export default function FindingsList({
                   </>
                 )}
               </p>
+              {f.llm_opinion && <ERAdvice opinion={f.llm_opinion} />}
               <span style={{ display: "flex", gap: "0.5rem" }}>
                 <button style={reviewButton("var(--ok)")} onClick={() => review(f.id, "confirm")}>
                   Yes, that&apos;s me
@@ -263,4 +264,79 @@ function reviewButton(color: string): React.CSSProperties {
     cursor: "pointer",
     fontSize: "0.85rem",
   };
+}
+
+// Plain-language read of Qwen's verdict — never a directive. The leaning
+// only tints a small dot; the words stay "leans …" so nothing reads as a
+// decision the user must accept. Colors avoid the product's good/bad
+// semantics (esp. --ok, the confirm-button green) so no lean looks like the
+// "recommended" answer: match = cautionary amber (a confirmed match raises
+// exposure), no_match = neutral accent, unsure = dim.
+const ER_VERDICT: Record<LlmOpinion["verdict"], { label: string; color: string }> = {
+  match: { label: "leans toward this being you", color: "var(--warn)" },
+  no_match: { label: "leans toward this NOT being you", color: "var(--accent)" },
+  unsure: { label: "isn't sure", color: "var(--text-dim)" },
+};
+
+// Defensive display cap on the model-written evidence list (the API allows
+// up to 20); disclosed, not silent — matches the house convention.
+const EVIDENCE_SHOWN = 5;
+
+/**
+ * B4 gray-zone second opinion (E4). Advice ONLY — the user's Yes/No below
+ * is the decision (FR-ER-1), so this reads as a hint, never a verdict:
+ * subdued styling (a quiet ✦ Qwen mark, not the E2/E3 accent pill, so it
+ * never competes with the decision), "leans"/"isn't sure" wording, an
+ * explicit "your answer decides" line. Evidence bullets are model output —
+ * rendered strictly as text (already control-char-stripped server-side).
+ */
+function ERAdvice({ opinion }: { opinion: LlmOpinion }) {
+  const v = ER_VERDICT[opinion.verdict] ?? ER_VERDICT.unsure;
+  const extra = opinion.evidence.length - EVIDENCE_SHOWN;
+  return (
+    <div
+      style={{
+        margin: "0 0 0.5rem",
+        padding: "0.5rem 0.7rem",
+        background: "var(--bg)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        fontSize: "0.8rem",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+        <span
+          className="dot"
+          style={{ background: v.color, flexShrink: 0 }}
+          aria-hidden
+        />
+        <span>
+          <span style={{ color: "var(--accent)" }}>✦ Qwen</span>
+          <span className="dim">&apos;s hint — </span>
+          {v.label}
+        </span>
+      </div>
+      {opinion.evidence.length > 0 && (
+        <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.2rem" }}>
+          {opinion.evidence.slice(0, EVIDENCE_SHOWN).map((e, i) => (
+            <li key={i} className="dim" style={{ marginBottom: "0.15rem" }}>
+              {e}
+            </li>
+          ))}
+        </ul>
+      )}
+      {extra > 0 && (
+        <p
+          className="dim"
+          style={{ margin: "0.2rem 0 0", paddingLeft: "1.2rem", fontSize: "0.75rem" }}
+        >
+          …and {extra} more
+        </p>
+      )}
+      <p className="dim" style={{ margin: "0.35rem 0 0", fontSize: "0.72rem" }}>
+        Only a hint — your answer below decides.
+        {opinion.model ? `  ·  ${opinion.model}` : ""}
+      </p>
+    </div>
+  );
 }

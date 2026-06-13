@@ -62,6 +62,14 @@ export type Scan = {
   jobs: ScanJob[];
 };
 
+/** B4: Qwen's gray-zone second opinion on a "possible" match — advice for
+ * the user's confirm/reject review only. Never moves match_status. */
+export type LlmOpinion = {
+  verdict: "match" | "no_match" | "unsure";
+  evidence: string[];
+  model: string | null; // loosely typed on the backend (dict|None); may be absent
+};
+
 export type Finding = {
   id: string;
   category: "credential" | "broker" | "social" | "records" | "linkage";
@@ -82,6 +90,7 @@ export type Finding = {
   corroboration_count: number;
   merged_sources: { source: string; source_name: string }[];
   conflicts: { field: string; values: { value: string; source: string }[] }[];
+  llm_opinion: LlmOpinion | null;
 };
 
 export type FindingsPage = {
