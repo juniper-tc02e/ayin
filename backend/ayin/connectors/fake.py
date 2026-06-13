@@ -93,8 +93,18 @@ class FakeConnector(Connector):
                         confidence=0.9,
                         summary=f"(FAKE) A fixture broker listing for {seed.value} on "
                                 f"{p['site']} — flagged removable.",
-                        payload={"site": p["site"], "removable": True,
-                                 "opt_out": "https://fake-people-search.example/opt-out"},
+                        # Mirrors the real broker connector's payload shape
+                        # (ayin.connectors.broker.detector) so the opt-out
+                        # flow — checklist steps + the report's removal link —
+                        # exercises the same fields end to end.
+                        payload={
+                            "site": p["site"],
+                            "removable": True,
+                            "opt_out_url": "https://fake-people-search.example/opt-out",
+                            "opt_out_instructions": "Open the opt-out page, find your "
+                            "listing, and submit the removal request for your email.",
+                            "expected_processing": "a few days",
+                        },
                         dedupe_key=f"fake:broker:{p['site']}:{seed.value}",
                         identifier_id=seed.identifier_id,
                     )

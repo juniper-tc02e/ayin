@@ -35,8 +35,21 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
       });
   }, [scanId, router]);
 
+  // One checklist fetch for the whole page — both HardeningChecklist
+  // instances read this, so the B3 generation behind GET /checklist runs at
+  // most once per view (not once per instance). Stale-guarded: the first
+  // fetch can regenerate synchronously for seconds, so only the latest
+  // request may land (mirrors NarrativePanel).
   useEffect(() => {
-    api<Checklist>(`/scans/${scanId}/checklist`).then(setChecklist).catch(() => {});
+    let stale = false;
+    api<Checklist>(`/scans/${scanId}/checklist`)
+      .then((c) => {
+        if (!stale) setChecklist(c);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
   }, [scanId, reviewVersion]);
 
   if (missing)
@@ -99,20 +112,30 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
       {/* 2. Top 3 to fix now — owned by the narrative's "Where to start"
           when it rendered one */}
       {!narrativeOwnsTopFixes && (
-        <HardeningChecklist scanId={scanId} refreshKey={reviewVersion} topOnly={3} />
+        <HardeningChecklist scanId={scanId} checklist={checklist} topOnly={3} />
       )}
 
       {/* 3. Findings by category (+ possible-match review) */}
       <h2 style={{ fontSize: "1.05rem", marginTop: "1.5rem" }}>What we found, by category</h2>
       <FindingsList scanId={scanId} onReviewed={() => setReviewVersion((v) => v + 1)} />
 
-      {/* 4. Full remediation plan */}
+      {/* 4. Full remediation plan — the first checklist fetch can take
+          seconds (it generates the B3 personalized steps), so show a
+          placeholder rather than an orphaned heading over blank space */}
       <h2 style={{ fontSize: "1.05rem", marginTop: "1.5rem" }}>Your remediation plan</h2>
-      <HardeningChecklist scanId={scanId} refreshKey={reviewVersion} />
-      <p className="dim" style={{ fontSize: "0.8rem" }}>
-        Checklist is read-only for now — done-tracking and automated broker removal are
-        coming.
-      </p>
+      {checklist === null ? (
+        <p className="dim" style={{ fontSize: "0.85rem" }}>
+          Building your personalized plan…
+        </p>
+      ) : (
+        <>
+          <HardeningChecklist scanId={scanId} checklist={checklist} />
+          <p className="dim" style={{ fontSize: "0.8rem" }}>
+            Checklist is read-only for now — done-tracking and automated broker removal are
+            coming.
+          </p>
+        </>
+      )}
 
       {/* 5. Watch for changes — intent capture (M4-4) */}
       <IntentCTA

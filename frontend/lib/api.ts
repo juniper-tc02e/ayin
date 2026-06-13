@@ -173,6 +173,10 @@ export type ChecklistItem = {
   steps: string[];
   expected_score_delta: number;
   effort: "low" | "medium";
+  // B3: Qwen-personalized steps for this finding, or null when the LLM is
+  // off / didn't cover it. The `steps` above are the deterministic floor and
+  // are always present.
+  personalized_steps: string[] | null;
 };
 
 export type Checklist = {
