@@ -41,6 +41,22 @@ What's NOT done (this is the actual handover):
 
 Local test environment on the Windows machine (June 12): Python 3.13 can't run the suite (`pgserver` has no cp313 wheel) — a Python 3.12 venv lives at `%LOCALAPPDATA%\ayin-venv` with the backend installed editable + dev extras; run `pytest` from `backend/` with `AYIN_TEST_PGDATA=%LOCALAPPDATA%\ayin-test-pg`. `cryptography` + `pyyaml` are now declared in pyproject (were missing).
 
+## Update — June 13, 2026: Workstream E (demo surface) COMPLETE
+
+Workstream B shipped the Qwen integration *behind* the API; the frontend rendered none of it. **Workstream E wired all four Qwen surfaces into the UI** so the demo is filmable. All five steps are committed, pushed, and verified live against local Ollama (and the engine is identical on Qwen Cloud):
+
+- **E1** `7aeed2d` — `GET /scans/{id}/activity`: an allowlisted, per-event-redacted view of the scan's audit records (planner reasoning, gates, LLM generation events). Double allowlist; owner-only; the read is itself audited. +6 backend tests.
+- **E2** `1f95f4e` — `NarrativePanel`: the grounded report narrative with numbered **citation chips** that jump to the source finding; "✦ written by Qwen" badge; fail-soft. Plus `backend/scripts/demo_server.py` — the real API on a throwaway pgserver Postgres with a self-healing seeded demo account (`demo-ayin@example.org` / `ayin-demo-password-1`), no Docker — the E-work + video-filming rig.
+- **E3** `b02c96f` — personalized remediation steps on the checklist ("✦ personalized by Qwen", deterministic playbook one click beneath); lifted the checklist fetch to the page to stop triple-generating B3. Fixed a latent fixture bug (FakeConnector broker `opt_out` → `opt_out_url`/`_instructions`/`_processing`, matching the real connector).
+- **E4** `b4cd4ed` — Qwen's gray-zone "✦ Qwen's hint" on possible matches (leans/unsure + evidence + "your answer below decides"); advice only, never moves the decision (FR-ER-1).
+- **E5** `488f605` — `PlannerTrail`: the agentic activity timeline (live in ScanPanel + a lazy "How Ayin ran this scan" card on the report page). Fixed the reload-freezes-polling bug; polling pauses on tab-hidden and `/findings` is fetched on progress transitions only.
+
+Each step ran through a multi-agent adversarial review (3 lenses × 2-skeptic verification); confirmed findings fixed before commit. The report page is now the full demo surface: score → grounded narrative with clickable citations → personalized fixes → ER hints → the agentic audit trail.
+
+**Open Phase-1 note (flagged, not silently changed):** the 2s liveness poll (`GET /scans`, `/findings`) writes an immutable hash-chained audit row per read. E5 reduced the client amplification, but whether self-view liveness polling should be audited at all is an audit-load decision to make (ADR) before an async, multi-user deployment.
+
+**Remaining to submit:** (1) voucher form — needs the Alibaba UID (USER, 5 min); (2) Workstream C — ECS deploy (`infra/alibaba/deploy.sh`, untested, paste-credentials); (3) Workstream D — assets now drafted in `docs/submission/` (video script, Devpost description, blog post, testing instructions) — review, record, and fill the live URL once C lands.
+
 ## Constraints that must survive the hackathon
 
 CLAUDE.md is the contract; these are the ones hackathon work will be most tempted to bend. Don't.
