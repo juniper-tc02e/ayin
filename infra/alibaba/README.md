@@ -32,16 +32,26 @@ PUBLIC_HOST=<domain-or-ip> QWEN_API_KEY=<key> ./deploy.sh   # first run
 ```
 
 `deploy.sh` generates all production secrets **on the server** on first run
-(`.env`, chmod 600) — nothing secret is ever committed. The API container
-runs `alembic upgrade head` on boot. Re-running the script is safe.
+(`.env`, chmod 600) — nothing secret is ever committed. On boot the API
+container runs `alembic upgrade head`, then `scripts/seed_demo.py`. Re-running
+the script is safe.
+
+This compose file sets `DEMO_MODE=true`, which (idempotently, on every boot):
+- **seeds the judge demo account** `demo-ayin@example.org` — a verified
+  email anchor + an aux username (self-scan rule holds: it only scans its own
+  verified identifiers), and
+- **enables the synthetic `FakeConnector`** so the judge scan produces
+  reproducible, clearly-labeled "(FAKE)" findings with no API keys and no real
+  person's data. (`DEMO_MODE` is never set in a real production deployment.)
 
 ## Production hygiene checklist (C6 — before sharing the URL)
 
 - [ ] `curl https://<host>/api/health` green; a full scan completes
 - [ ] `BETA_INVITE_REQUIRED=true` confirmed (signup needs an invite; judges
       use the demo account from the submission's testing instructions)
-- [ ] Demo account seeded **with the founder's own verified identifiers
-      only** (self-scan rule holds in the demo too — CLAUDE.md #1)
+- [ ] Demo account present (`DEMO_MODE` auto-seeds `demo-ayin@example.org`)
+      and scannable; it scans **only its own verified identifiers** against the
+      synthetic source (self-scan rule holds, no real PII — CLAUDE.md #1)
 - [ ] Rate limits on (5 scans/day default); abuse heuristics active
 - [ ] `VAULT_MASTER_KEY` backed up off-box (losing it = crypto-shred)
 - [ ] Billing console checked; leave the instance running **through July 31**
@@ -50,8 +60,9 @@ runs `alembic upgrade head` on boot. Re-running the script is safe.
 
 ## Known gaps (accepted for the hackathon)
 
-- Dev-style images (`pip install -e` on boot) instead of built images —
-  production Dockerfiles are a Phase-1 item; first boot is slow, restarts fast.
+- Dev-style images (`pip install .` on boot from the read-only source mount)
+  instead of built images — production Dockerfiles are a Phase-1 item; first
+  boot is slow, restarts fast.
 - No MinIO/object storage on this box (vault payloads live in Postgres via
   the DbVault path; artifact storage is Phase 1).
 - Email is console-fallback unless SMTP creds are provided — the judge flow

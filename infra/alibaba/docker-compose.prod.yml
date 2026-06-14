@@ -43,9 +43,14 @@ services:
     image: python:3.12-slim
     restart: unless-stopped
     working_dir: /app
+    # Non-editable install: an editable (-e) install writes *.egg-info into the
+    # source tree, which is mounted read-only — that would crash-loop the
+    # container. `pip install .` builds in a temp dir, so :ro is fine.
+    # seed_demo runs after migrations and is a no-op unless DEMO_MODE is set.
     command: >
-      sh -c "pip install --quiet -e . &&
+      sh -c "pip install --quiet . &&
              alembic upgrade head &&
+             python scripts/seed_demo.py &&
              uvicorn ayin.api.main:app --host 0.0.0.0 --port 8000 --workers 2"
     env_file: .env
     environment:
@@ -55,6 +60,7 @@ services:
       COOKIE_SECURE: "true"
       SCAN_EXECUTION: celery
       BETA_INVITE_REQUIRED: "true"  # judges use the demo account / invite code
+      DEMO_MODE: "true"             # enable synthetic source + seed demo account
     volumes:
       - ../../backend:/app:ro
       - api-pip-cache:/root/.cache/pip
@@ -68,8 +74,10 @@ services:
     image: python:3.12-slim
     restart: unless-stopped
     working_dir: /app
+    # Non-editable install (see api). celery_app includes the task module, so
+    # the worker actually registers run_job/resume_stalled/purge_expired.
     command: >
-      sh -c "pip install --quiet -e . &&
+      sh -c "pip install --quiet . &&
              celery -A ayin.orchestrator.celery_app:celery_app worker -B -l info --concurrency=1"
     env_file: .env
     environment:
@@ -77,6 +85,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       APP_ENV: production
       SCAN_EXECUTION: celery
+      DEMO_MODE: "true"             # worker enables the same synthetic source
     volumes:
       - ../../backend:/app:ro
       - api-pip-cache:/root/.cache/pip

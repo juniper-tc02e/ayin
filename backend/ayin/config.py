@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     # ── Private beta (M5-1): require an invite code at signup ─
     beta_invite_required: bool = False
 
+    # ── Demo deployment (hackathon judge flow) ───────────────
+    # When true: the synthetic FakeConnector is enabled even in production
+    # (it carries counsel sign-off — nothing external), and scripts/seed_demo
+    # seeds the public demo account on boot. NEVER true in a real production
+    # deployment — it puts a known-credential account + a fake source on the box.
+    demo_mode: bool = False
+
     # ── Safety / limits (FR-SCAN-3; env values are fallback/seed —
     #    live values come from the rate_limit_policies table, M1-6) ──
     rate_limit_scans_per_day: int = 5

@@ -19,7 +19,6 @@ Everything degrades to deterministic templates if the endpoint is down.
 
 import os
 import sys
-from datetime import datetime, timezone
 
 # ── env must be set before any ayin import (mirrors tests/conftest.py) ──
 _LOCAL = os.environ.get("LOCALAPPDATA") or "/tmp"  # noqa: S108 — dev-only throwaway pgdata
@@ -41,7 +40,6 @@ sys.path.insert(0, _BACKEND)
 
 from alembic import command as alembic_command  # noqa: E402
 from alembic.config import Config as AlembicConfig  # noqa: E402
-from sqlalchemy import select  # noqa: E402
 
 from ayin.config import get_settings  # noqa: E402
 
@@ -55,71 +53,20 @@ import uvicorn  # noqa: E402
 
 from ayin.api.main import create_app  # noqa: E402
 from ayin.api.routes.scans import get_registry, get_vault  # noqa: E402
-from ayin.auth.passwords import hash_password  # noqa: E402
 from ayin.connectors import ConnectorRegistry  # noqa: E402
 from ayin.connectors.fake import FakeConnector  # noqa: E402
 from ayin.db import get_sessionmaker  # noqa: E402
-from ayin.models import Subject, TosAcceptance, User  # noqa: E402
-from ayin.models.enums import IdentifierKind, VerificationState  # noqa: E402
-from ayin.models.subject import Identifier  # noqa: E402
+from ayin.demo import DEMO_EMAIL, DEMO_PASSWORD, seed_demo_account  # noqa: E402
 from ayin.vault import NullVault  # noqa: E402
 
-DEMO_EMAIL = "demo-ayin@example.org"
-DEMO_PASSWORD = "ayin-demo-password-1"  # noqa: S105 — fixture for a throwaway local DB
-
 settings = get_settings()
-NOW = datetime.now(timezone.utc)
 
 with get_sessionmaker()() as db:
-    # Idempotent, self-healing seed: every boot re-asserts the demo account's
-    # invariants (verified email anchor, aux username, current-ToS acceptance)
-    # so a stray "Remove" click during UI work never strands the harness.
-    user = db.execute(select(User).where(User.email == DEMO_EMAIL)).scalar_one_or_none()
-    if user is None:
-        user = User(
-            email=DEMO_EMAIL,
-            password_hash=hash_password(DEMO_PASSWORD),
-            email_verified_at=NOW,
-        )
-        db.add(user)
-        db.flush()
-        db.add(Subject(owner_user_id=user.id))
-        db.flush()
-        print(f"seeded demo account: {DEMO_EMAIL}")
-    else:
-        print(f"demo account already present: {DEMO_EMAIL}")
-
-    subject = db.execute(
-        select(Subject).where(Subject.owner_user_id == user.id)
-    ).scalar_one()
-    identifiers = db.execute(
-        select(Identifier).where(Identifier.subject_id == subject.id)
-    ).scalars().all()
-    by_kind = {(i.kind, i.value_normalized) for i in identifiers}
-    if (IdentifierKind.EMAIL, DEMO_EMAIL) not in by_kind:
-        # clearly-fake self-scan anchor (gate requires a verified email/phone)
-        db.add(Identifier(
-            subject_id=subject.id, kind=IdentifierKind.EMAIL,
-            value_raw=DEMO_EMAIL, value_normalized=DEMO_EMAIL,
-            verification_state=VerificationState.VERIFIED, verified_at=NOW,
-        ))
-        print("re-seeded verified email anchor")
-    if (IdentifierKind.USERNAME, "fake_handle") not in by_kind:
-        # aux username — gray-zone "possible match" material for the demo
-        db.add(Identifier(
-            subject_id=subject.id, kind=IdentifierKind.USERNAME,
-            value_raw="fake_handle", value_normalized="fake_handle",
-        ))
-        print("re-seeded aux username")
-    accepted = db.execute(
-        select(TosAcceptance.id).where(
-            TosAcceptance.user_id == user.id,
-            TosAcceptance.version == settings.tos_current_version,
-        )
-    ).scalar_one_or_none()
-    if accepted is None:
-        db.add(TosAcceptance(user_id=user.id, version=settings.tos_current_version))
+    # Same idempotent, self-healing seed the deployed stack uses (ayin.demo) —
+    # one definition of "the demo account" across dev and prod.
+    created = seed_demo_account(db, settings)
     db.commit()
+    print(f"demo account {'seeded' if created else 'already present'}: {DEMO_EMAIL}")
 
 reg = ConnectorRegistry()
 reg.register(FakeConnector)
