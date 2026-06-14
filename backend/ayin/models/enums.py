@@ -91,6 +91,21 @@ class FindingState(str, enum.Enum):
     SUPPRESSED = "suppressed"  # e.g. excluded subject (FR-TS-3)
 
 
+class PivotLinkStatus(str, enum.Enum):
+    """Lifecycle of a pivot-graph edge (ADR-0005, S2-1).
+
+    PROPOSED: a sourced candidate edge — never auto-traversed or scored.
+    MATERIALIZED: promoted to a real seed (above threshold + attached to the
+                  verified subject) and walked.
+    CONFIRMED / REJECTED: the user's word — final, survives re-resolution.
+    """
+
+    PROPOSED = "proposed"
+    MATERIALIZED = "materialized"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+
+
 class RemediationType(str, enum.Enum):
     OPT_OUT = "opt_out"
     DROP = "drop"

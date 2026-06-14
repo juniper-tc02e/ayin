@@ -19,9 +19,11 @@ from ayin.config import get_settings
 from ayin.connectors import (
     AccessMethod,
     Connector,
+    ConnectorCapability,
     ConnectorPermanentError,
     ConnectorRegistry,
     ConnectorTransientError,
+    LatencyClass,
     NormalizedFinding,
     RawResult,
     SourceGovernance,
@@ -64,6 +66,11 @@ class SecondConnector(Connector):
     version = "0.0.1"
     governance = _gov()
     supported_kinds = frozenset({IdentifierKind.EMAIL})
+    capability = ConnectorCapability(
+        output_categories=frozenset({FindingCategory.SOCIAL}),
+        latency_class=LatencyClass.FAST,
+        description="Second synthetic fixture source for orchestrator tests.",
+    )
 
     def authenticate(self): ...
 

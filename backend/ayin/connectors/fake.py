@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from ayin.connectors.base import (
     AccessMethod,
     Connector,
+    ConnectorCapability,
+    LatencyClass,
     NormalizedFinding,
     RawResult,
     SeedQuery,
@@ -35,6 +37,14 @@ class FakeConnector(Connector):
     )
     supported_kinds = frozenset(
         {IdentifierKind.EMAIL, IdentifierKind.USERNAME, IdentifierKind.PHONE}
+    )
+    capability = ConnectorCapability(
+        output_categories=frozenset(
+            {FindingCategory.CREDENTIAL, FindingCategory.BROKER, FindingCategory.SOCIAL}
+        ),
+        context_used=frozenset(),
+        latency_class=LatencyClass.FAST,
+        description="Synthetic fixtures exercising the full contract (tests and local dev only).",
     )
 
     def authenticate(self) -> None:  # no credentials needed

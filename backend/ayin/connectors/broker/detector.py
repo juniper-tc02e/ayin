@@ -27,6 +27,8 @@ from ayin.config import get_settings
 from ayin.connectors.base import (
     AccessMethod,
     Connector,
+    ConnectorCapability,
+    LatencyClass,
     NormalizedFinding,
     RawResult,
     SeedQuery,
@@ -74,8 +76,15 @@ class BrokerDetectionConnector(Connector):
         cost_per_call_usd=0.0,
         rate_limit_per_minute=30,
         counsel_signoff=False,  # per-broker verification + counsel before live probing
+        lawful_jurisdictions=frozenset({"US"}),  # curated brokers are US people-search
     )
     supported_kinds = frozenset({IdentifierKind.FULL_NAME})
+    capability = ConnectorCapability(
+        output_categories=frozenset({FindingCategory.BROKER}),
+        context_used=frozenset({"city"}),
+        latency_class=LatencyClass.SLOW,
+        description="Whether the subject's name appears on public people-search listings.",
+    )
 
     def __init__(
         self,

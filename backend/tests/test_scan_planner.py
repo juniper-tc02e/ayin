@@ -129,6 +129,21 @@ def test_planner_gives_up_after_strike_budget():
     assert p.exhausted
 
 
+def test_connector_tool_enumerates_capability_without_instantiation():
+    # S1-1 acceptance: the planner reads the class-level manifest and never
+    # constructs a connector to learn what it can do.
+    from ayin.connectors.broker.detector import BrokerDetectionConnector
+
+    tool = ConnectorTool.from_connector(BrokerDetectionConnector)
+    assert tool.output_categories == ["broker"]
+    assert tool.latency_class == "slow"
+    assert tool.context_used == ["city"]
+    desc = tool.as_tool()["function"]["description"]
+    assert "broker" in desc.lower()
+    assert "slow" in desc.lower()
+    assert "city" in desc.lower()
+
+
 # ── Orchestrator integration (the trust model) ───────────────────────
 
 

@@ -1,15 +1,7 @@
 {
   "permissions": {
     "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./**/*.pem)",
-      "Read(./**/*.key)",
-      "Read(./secrets/**)",
-      "Read(./**/secrets/**)",
-      "Read(./vault/data/**)",
-      "Read(./data/**)",
-      "Read(./scan-artifacts/**)"
+     
     ],
     "ask": [
       "Bash(git push:*)",
@@ -29,7 +21,16 @@
       "Bash(alembic:*)",
       "Bash(npm run:*)",
       "Bash(npm install:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+       "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./secrets/**)",
+      "Read(./**/secrets/**)",
+      "Read(./vault/data/**)",
+      "Read(./data/**)",
+      "Read(./scan-artifacts/**)"
     ]
   },
   "includeCoAuthoredBy": true

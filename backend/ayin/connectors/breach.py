@@ -21,8 +21,10 @@ from ayin.connectors.base import (
     AccessMethod,
     Connector,
     ConnectorAuthError,
+    ConnectorCapability,
     ConnectorPermanentError,
     ConnectorTransientError,
+    LatencyClass,
     NormalizedFinding,
     RawResult,
     SeedQuery,
@@ -99,6 +101,12 @@ class BreachConnector(Connector):
         counsel_signoff=False,  # flip only with license + counsel record (PRD §11.4)
     )
     supported_kinds = frozenset({IdentifierKind.EMAIL})
+    capability = ConnectorCapability(
+        output_categories=frozenset({FindingCategory.CREDENTIAL}),
+        context_used=frozenset(),
+        latency_class=LatencyClass.FAST,
+        description="Which known data breaches an email appears in (exposure status only).",
+    )
 
     def __init__(self, *, transport: httpx.BaseTransport | None = None, **kw):
         super().__init__(**kw)

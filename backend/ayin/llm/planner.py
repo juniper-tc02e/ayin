@@ -41,32 +41,48 @@ def tool_name_for(connector_id: str) -> str:
 @dataclass(frozen=True)
 class ConnectorTool:
     """Non-sensitive descriptor of one approved connector, as offered to the
-    planner. Carries the governance facts the model needs to reason about a
-    source — never credentials or seed values."""
+    planner. Carries the governance + capability facts the model needs to
+    reason about a source — never credentials or seed values. Built from the
+    connector *class* (S1-1): the planner enumerates capabilities without ever
+    instantiating a connector."""
 
     connector_id: str
     name: str
     supported_kinds: list[str]
     access_method: str
+    output_categories: list[str]
+    context_used: list[str]
+    latency_class: str
+    description: str
 
     @classmethod
     def from_connector(cls, connector_cls) -> ConnectorTool:
+        cap = connector_cls.capability
         return cls(
             connector_id=connector_cls.id,
             name=connector_cls.name,
             supported_kinds=sorted(k.value for k in connector_cls.supported_kinds),
             access_method=connector_cls.governance.access_method.value,
+            output_categories=sorted(c.value for c in cap.output_categories),
+            context_used=sorted(cap.context_used),
+            latency_class=cap.latency_class.value,
+            description=cap.description,
         )
 
     def as_tool(self) -> dict:
+        desc = (
+            f"{self.description} "
+            f"Accepts: {', '.join(self.supported_kinds)}. "
+            f"Returns: {', '.join(self.output_categories)}. "
+            f"Latency: {self.latency_class}. Access: {self.access_method}."
+        )
+        if self.context_used:
+            desc += f" Uses context: {', '.join(self.context_used)}."
         return {
             "type": "function",
             "function": {
                 "name": tool_name_for(self.connector_id),
-                "description": (
-                    f"{self.name}. Seed kinds: {', '.join(self.supported_kinds)}. "
-                    f"Access method: {self.access_method}."
-                ),
+                "description": desc,
                 "parameters": {
                     "type": "object",
                     "properties": {

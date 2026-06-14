@@ -15,10 +15,12 @@ from pydantic import ValidationError
 from ayin.connectors import (
     AccessMethod,
     Connector,
+    ConnectorCapability,
     ConnectorContractViolation,
     ConnectorRateLimited,
     ConnectorRegistry,
     ConnectorTransientError,
+    LatencyClass,
     NormalizedFinding,
     RawResult,
     SeedQuery,
@@ -49,6 +51,11 @@ class MiniConnector(Connector):
     version = "0.0.1"
     governance = GOOD_GOVERNANCE
     supported_kinds = frozenset({IdentifierKind.EMAIL})
+    capability = ConnectorCapability(
+        output_categories=frozenset({FindingCategory.SOCIAL}),
+        latency_class=LatencyClass.FAST,
+        description="Minimal compliant connector for contract tests.",
+    )
 
     def __init__(self, fail_times=0, emit=None, **kw):
         super().__init__(**kw)
@@ -113,6 +120,25 @@ def test_registry_rejects_connector_without_governance():
 
     with pytest.raises(RegistrationError):
         reg.register(NoGov)
+
+
+def test_registry_rejects_connector_without_capability():
+    reg = ConnectorRegistry()
+
+    class NoCap(Connector):
+        id = "nocap"
+        name = "No Capability"
+        version = "0.0.1"
+        governance = GOOD_GOVERNANCE
+        supported_kinds = frozenset({IdentifierKind.EMAIL})
+        # capability deliberately omitted — S1-1 makes the manifest mandatory.
+
+        def authenticate(self): ...
+        def fetch(self, seed): return []
+        def normalize(self, seed, raw): return []
+
+    with pytest.raises(RegistrationError):
+        reg.register(NoCap)
 
 
 def test_registry_rejects_duplicate_ids():

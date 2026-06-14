@@ -108,6 +108,13 @@ class Finding(Base, UuidPkMixin, CreatedAtMixin):
     resolution: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
+    # Cross-source clustering (S2-3 / ADR-0005): findings the resolver believes
+    # describe the same exposure/person across sources share a group id, giving
+    # corroboration and cross-source confidence aggregation a home. NULL until
+    # grouped. Not an FK — a shared cluster key, not a row.
+    correlation_group_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, nullable=True, index=True
+    )
 
 
 class Score(Base, UuidPkMixin):

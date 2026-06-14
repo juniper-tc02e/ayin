@@ -10,6 +10,7 @@ from ayin.models.finding import Finding, RemediationTask, Score
 from ayin.models.intent import IntentKind, IntentSignal
 from ayin.models.invite import Invite
 from ayin.models.job import ConnectorJob
+from ayin.models.pivot import PivotLink
 from ayin.models.protection import ProtectionEntry
 from ayin.models.ratelimit import RateLimitPolicy
 from ayin.models.scan import Scan
@@ -29,6 +30,7 @@ __all__ = [
     "Finding",
     "Score",
     "RemediationTask",
+    "PivotLink",
     "AuditRecord",
     "GENESIS_HASH",
     "AbuseSignal",

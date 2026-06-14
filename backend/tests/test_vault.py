@@ -19,7 +19,9 @@ from ayin.config import get_settings
 from ayin.connectors import (
     AccessMethod,
     Connector,
+    ConnectorCapability,
     ConnectorRegistry,
+    LatencyClass,
     NormalizedFinding,
     RawResult,
     SourceGovernance,
@@ -174,6 +176,11 @@ class SensitiveConnector(Connector):
         counsel_signoff=False,
     )
     supported_kinds = frozenset({IdentifierKind.EMAIL})
+    capability = ConnectorCapability(
+        output_categories=frozenset({FindingCategory.CREDENTIAL}),
+        latency_class=LatencyClass.FAST,
+        description="Fixture source emitting a vault-bound sensitive payload.",
+    )
 
     def authenticate(self): ...
 

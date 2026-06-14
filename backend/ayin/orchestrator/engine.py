@@ -124,6 +124,17 @@ def build_seed_queries(
     return seeds
 
 
+def subject_jurisdictions(identifiers: list[Identifier]) -> frozenset[str]:
+    """Distinct known jurisdiction codes across the subject's seeds (S1-2).
+    Empty = unknown — no jurisdiction restriction is applied yet; the lawful-use
+    filter only excludes a source we KNOW is unlawful for the subject."""
+    return frozenset(
+        i.jurisdiction.strip().upper()
+        for i in identifiers
+        if i.jurisdiction and i.jurisdiction.strip()
+    )
+
+
 # ── Gates (safety in the critical path) ──────────────────────────────
 
 
@@ -258,20 +269,31 @@ def dispatch_scan(db: Session, scan: Scan, registry: ConnectorRegistry) -> list[
     kind. gated → running. Commits."""
     identifiers = eligible_seed_identifiers(db, scan.subject_id)
     seed_kinds = {i.kind for i in identifiers}
+    subj_juris = subject_jurisdictions(identifiers)
     jobs: list[ConnectorJob] = []
+    skipped_jurisdiction: list[str] = []
     for cid in registry.enabled_ids():
         cls = registry.get_class(cid)
         if not (cls.supported_kinds & seed_kinds):
+            continue
+        if not cls.governance.lawful_for(subj_juris):
+            # Not lawful to use for this subject's jurisdiction — never proposed
+            # (S1-2). The decision is recorded on scan.started below.
+            skipped_jurisdiction.append(cid)
             continue
         job = ConnectorJob(scan_id=scan.id, connector_id=cid)
         db.add(job)
         jobs.append(job)
     scan.source_set = [j.connector_id for j in jobs]
     scan.started_at = datetime.now(timezone.utc)
+    detail = {"connectors": scan.source_set, "seed_kinds": sorted(k.value for k in seed_kinds)}
+    if skipped_jurisdiction:
+        detail["jurisdiction_skipped"] = sorted(skipped_jurisdiction)
+        detail["subject_jurisdictions"] = sorted(subj_juris)
     _transition(
         db, scan, ScanStatus.RUNNING, actor=system_actor("orchestrator"),
         event="scan.started",
-        detail={"connectors": scan.source_set, "seed_kinds": sorted(k.value for k in seed_kinds)},
+        detail=detail,
     )
     db.flush()
     db.commit()

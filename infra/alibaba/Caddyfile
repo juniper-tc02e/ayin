@@ -5,6 +5,11 @@
 {$PUBLIC_HOST} {
 	encode gzip
 
+	# HSTS — .com isn't on the HSTS preload list, so enforce HTTPS at the
+	# browser ourselves. (Browsers ignore HSTS on a bare IP, so this is a
+	# harmless no-op until PUBLIC_HOST is the real domain.)
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
 	# API under /api → FastAPI
 	handle_path /api/* {
 		reverse_proxy api:8000

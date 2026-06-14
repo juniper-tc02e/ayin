@@ -56,5 +56,9 @@ class Identifier(Base, UuidPkMixin, CreatedAtMixin):
     )
     verified_at: Mapped[datetime | None] = mapped_column(nullable=True)
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    # Jurisdiction hint for lawful-source routing (S1-2): ISO 3166 alpha-2 (or a
+    # bloc like "EU"), inferred from the identifier or set explicitly. NULL =
+    # unknown → no jurisdiction restriction is applied yet.
+    jurisdiction: Mapped[str | None] = mapped_column(String(8), nullable=True)
 
     subject: Mapped[Subject] = relationship(back_populates="identifiers")

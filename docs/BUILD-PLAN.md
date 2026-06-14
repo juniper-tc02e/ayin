@@ -165,12 +165,12 @@ Goal: let the planner choose *among many* sources, and make every source declare
 where it is lawful to use — so international expansion is a data change, not a
 code change.
 
-- [ ] **S1-1 — Connector capability manifest.** Extend the connector contract so
+- [x] **S1-1 — Connector capability manifest.** Extend the connector contract so
   each source declares the inputs it accepts, the context it needs, the output
   categories it returns, and its COGS/latency class. (FR-DISC-4 extension)
   - *Accept:* the planner can enumerate capabilities without instantiating a
     connector; a source missing a manifest cannot register.
-- [ ] **S1-2 — Jurisdiction + legal-basis routing.** Add `jurisdiction` to
+- [x] **S1-2 — Jurisdiction + legal-basis routing.** Add `jurisdiction` to
   `Identifier` and `SourceGovernance`; filter candidate sources by the subject's
   jurisdiction and the source's lawful-use basis (e.g., the EU "publicly
   accessible ≠ lawfully reusable" rule). *(new FR — add to PRD §11)*
@@ -182,7 +182,7 @@ code change.
 Goal: represent and walk cross-source linkage without inventing facts or merging
 namesakes. Per [`ADR-0005`](adr/0005-pivot-graph-data-model.md).
 
-- [ ] **S2-1 — Pivot-graph schema.** Add the `pivot_links` table (sourced, typed
+- [x] **S2-1 — Pivot-graph schema.** Add the `pivot_links` table (sourced, typed
   edges) and `correlation_group_id` on `Finding`; additive migration; no change
   to `Finding`/`Score` semantics. *(new FR)*
   - *Accept:* migration applies cleanly; every `PivotLink` row carries source +

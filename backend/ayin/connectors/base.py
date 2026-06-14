@@ -73,6 +73,9 @@ class AccessMethod(str, enum.Enum):
     SYNTHETIC = "synthetic"  # fixtures only — never external data
 
 
+GLOBAL_JURISDICTION = "*"  # a source lawful everywhere — not jurisdiction-bound
+
+
 class SourceGovernance(BaseModel):
     """Every field is REQUIRED — a connector without a complete governance
     record cannot exist (PRD §11.4: no source ships without it)."""
@@ -86,6 +89,63 @@ class SourceGovernance(BaseModel):
     cost_per_call_usd: float = Field(ge=0)
     rate_limit_per_minute: int = Field(gt=0)
     counsel_signoff: bool  # production enablement requires True (registry)
+    # Jurisdictions where this source's access method + legal basis is lawful to
+    # use — ISO 3166 alpha-2 codes (or a bloc like "EU"). The GLOBAL sentinel
+    # ("*") means lawful everywhere, for sources that are not jurisdiction-bound
+    # (e.g. a global breach-notification API). Default is global; a
+    # jurisdiction-bound source (US-only people-search) narrows it. (S1-2, PRD §11)
+    lawful_jurisdictions: frozenset[str] = Field(default=frozenset({GLOBAL_JURISDICTION}))
+
+    @field_validator("lawful_jurisdictions")
+    @classmethod
+    def _normalize_jurisdictions(cls, v: frozenset[str]) -> frozenset[str]:
+        norm = {j.strip().upper() for j in v if j.strip()}
+        return frozenset(norm or {GLOBAL_JURISDICTION})
+
+    def lawful_for(self, subject_jurisdictions: frozenset[str]) -> bool:
+        """Whether this source may be used for a subject in these jurisdictions.
+
+        Global sources are always lawful. An *unknown* subject jurisdiction
+        (empty set) is not yet restricted — inference is future work, so we only
+        exclude a source we KNOW is unlawful for the subject (the EU "publicly
+        accessible ≠ lawfully reusable" rule). Otherwise the source must be
+        lawful in at least one of the subject's jurisdictions."""
+        if GLOBAL_JURISDICTION in self.lawful_jurisdictions:
+            return True
+        if not subject_jurisdictions:
+            return True
+        return bool(self.lawful_jurisdictions & subject_jurisdictions)
+
+
+# ── Capability manifest (S1-1) ───────────────────────────────────────
+
+
+class LatencyClass(str, enum.Enum):
+    """Coarse latency bucket for planner ordering. Per-call COGS lives in
+    ``SourceGovernance.cost_per_call_usd`` — this is wall-clock, not cost."""
+
+    FAST = "fast"      # sub-second: a single keyed API lookup
+    MEDIUM = "medium"  # ~1–3s: a typical web/API round-trip
+    SLOW = "slow"      # 3s+: paginated probes, international record lookups
+
+
+class ConnectorCapability(BaseModel):
+    """What the planner reads to choose *among many* sources (S1-1) — WITHOUT
+    instantiating the connector.
+
+    ``Connector.supported_kinds`` stays the authoritative set of seed kinds a
+    source accepts; this manifest adds the rest the planner needs to rank and
+    select: the finding ``output_categories`` a source emits, the auxiliary
+    ``context_used`` it can exploit (e.g. ``{"city"}`` alongside a name), and a
+    coarse ``latency_class``. It only informs ordering/selection — it never
+    decides what runs (gates + the deterministic fallback do)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    output_categories: frozenset[FindingCategory] = Field(min_length=1)
+    context_used: frozenset[str] = Field(default_factory=frozenset)
+    latency_class: LatencyClass
+    description: str = Field(min_length=10)  # one line, planner- and audit-legible
 
 
 # ── I/O shapes ───────────────────────────────────────────────────────
@@ -200,6 +260,7 @@ class Connector(ABC):
     version: ClassVar[str]
     governance: ClassVar[SourceGovernance]
     supported_kinds: ClassVar[frozenset[IdentifierKind]]
+    capability: ClassVar[ConnectorCapability]  # machine-readable manifest (S1-1)
 
     def __init__(self, *, clock: Callable[[], float] = time.monotonic,
                  sleep: Callable[[float], None] = time.sleep):

@@ -11,7 +11,11 @@ from ayin.api.schemas import PreviewConnectorOut, PreviewSeedOut, ScanPreviewOut
 from ayin.connectors import ConnectorRegistry
 from ayin.models import Identifier, Subject
 from ayin.models.enums import VerificationState
-from ayin.orchestrator.engine import eligible_seed_identifiers, has_verified_anchor
+from ayin.orchestrator.engine import (
+    eligible_seed_identifiers,
+    has_verified_anchor,
+    subject_jurisdictions,
+)
 from ayin.safety.exclusion import split_excluded
 from ayin.safety.tos import has_accepted_current
 from ayin.services.normalize import CHALLENGEABLE_KINDS
@@ -80,11 +84,14 @@ def scan_preview(
         )
 
     seed_kinds = {i.kind for i in eligible}
+    subj_juris = subject_jurisdictions(eligible)
     connectors = []
     for cid in registry.enabled_ids():
         cls = registry.get_class(cid)
         if not (cls.supported_kinds & seed_kinds):
             continue
+        if not cls.governance.lawful_for(subj_juris):
+            continue  # not lawful for this subject's jurisdiction (S1-2)
         connectors.append(
             PreviewConnectorOut(
                 id=cid,

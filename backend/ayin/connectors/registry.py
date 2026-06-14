@@ -8,7 +8,7 @@ here and the orchestrator stops fanning out to it; its findings get flagged
 
 import logging
 
-from ayin.connectors.base import Connector, SourceGovernance
+from ayin.connectors.base import Connector, ConnectorCapability, SourceGovernance
 
 log = logging.getLogger("ayin.connectors.registry")
 
@@ -24,16 +24,21 @@ class ConnectorRegistry:
 
     def register(self, cls: type[Connector]) -> type[Connector]:
         """Class decorator. Validates the contract surface at import time."""
-        for attr in ("id", "name", "version", "governance", "supported_kinds"):
+        for attr in ("id", "name", "version", "governance", "supported_kinds", "capability"):
             if not hasattr(cls, attr) or getattr(cls, attr) in (None, "", set(), frozenset()):
                 raise RegistrationError(
                     f"Connector {cls.__name__} is missing required '{attr}' "
-                    "(governance + identity are mandatory — PRD §11.4)."
+                    "(governance + identity + capability are mandatory — PRD §11.4, S1-1)."
                 )
         if not isinstance(cls.governance, SourceGovernance):
             raise RegistrationError(
                 f"Connector {cls.__name__}.governance must be a SourceGovernance "
                 "instance (all fields required)."
+            )
+        if not isinstance(cls.capability, ConnectorCapability):
+            raise RegistrationError(
+                f"Connector {cls.__name__}.capability must be a ConnectorCapability "
+                "instance — the planner reads it to select sources (S1-1)."
             )
         if cls.id in self._classes:
             raise RegistrationError(f"Connector id '{cls.id}' already registered.")

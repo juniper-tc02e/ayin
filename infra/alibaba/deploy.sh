@@ -38,7 +38,7 @@ API_BASE_URL=https://${PUBLIC_HOST}/api
 
 # ── Qwen Cloud (the judged integration) ──────────────────────────────
 LLM_ENABLED=true
-QWEN_BASE_URL=${QWEN_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
+QWEN_BASE_URL=${QWEN_BASE_URL:?set QWEN_BASE_URL to your workspace-scoped Model Studio endpoint, e.g. https://YOUR-WORKSPACE.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1 — the generic dashscope-intl URL does NOT work with sk-ws workspace keys (handover note, Jun 12)}
 QWEN_API_KEY=${QWEN_API_KEY:?pass QWEN_API_KEY on first run}
 QWEN_MODEL=${QWEN_MODEL:-qwen-plus}
 

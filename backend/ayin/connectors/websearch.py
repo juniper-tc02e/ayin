@@ -22,8 +22,10 @@ from ayin.connectors.base import (
     AccessMethod,
     Connector,
     ConnectorAuthError,
+    ConnectorCapability,
     ConnectorPermanentError,
     ConnectorTransientError,
+    LatencyClass,
     NormalizedFinding,
     RawResult,
     SeedQuery,
@@ -84,6 +86,12 @@ class WebSearchConnector(Connector):
     )
     supported_kinds = frozenset(
         {IdentifierKind.EMAIL, IdentifierKind.USERNAME, IdentifierKind.FULL_NAME}
+    )
+    capability = ConnectorCapability(
+        output_categories=frozenset({FindingCategory.SOCIAL}),
+        context_used=frozenset({"city"}),
+        latency_class=LatencyClass.MEDIUM,
+        description="Public web and social pages that mention an email, username, or name.",
     )
 
     def __init__(self, *, transport: httpx.BaseTransport | None = None, **kw):
