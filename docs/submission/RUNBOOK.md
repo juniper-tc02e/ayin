@@ -9,13 +9,19 @@ Do these in order. Commands are copy-paste. Each step is tagged **[YOU]** (only 
 
 ---
 
-## Phase 0 — credentials (≈10 min) **[YOU]**
+## Phase 0 — credentials (≈5 min) **[YOU]**
 
-1. **Voucher form.** Alibaba Cloud console → avatar (top-right) → **Account ID** (16 digits) → submit at https://www.qwencloud.com/challenge/hackathon/voucher-application. *Don't block on it — ECS free-trial credits likely cover the box.*
-2. **Confirm Qwen Cloud creds are in hand.** They're at `%LOCALAPPDATA%\ayin-secrets\` on this machine:
+**The hackathon voucher is OPTIONAL — the whole submission runs without it.** Two separate credit pools cover everything, and neither needs the voucher:
+- **Qwen Cloud (the LLM):** your Model Studio account already has a **free quota (~70M tokens)** — a full scan is ~2.5k tokens, so the demo period won't dent it. The $40 voucher is just extra credits on top of that. Eyeball the quota at https://home.qwencloud.com/benefits.
+- **Alibaba ECS (the box):** its **own ~$90 free-trial credits**, separate from the voucher (which is Qwen-Cloud credits and can't pay for ECS anyway).
+
+1. *(Optional — skip it)* Voucher form: console avatar → **Account ID** → https://www.qwencloud.com/challenge/hackathon/voucher-application.
+2. **Confirm Qwen Cloud creds are in hand** at `%LOCALAPPDATA%\ayin-secrets\` (the day-one cloud call already used them):
    - the API key (`sk-ws…`)
    - the **workspace-scoped** base URL: `https://<workspace>.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`
    - ⚠ Use the **workspace** URL, not the generic dashscope URL `deploy.sh` defaults to. Never commit either.
+
+> **Staying up through July 31 — the real cost risk is the ECS credits, not the voucher.** Use the smallest instance, check the **Billing** console each time you touch the box, and top up a few dollars if the free-trial credits would lapse before judging ends (Jul 31).
 
 ---
 
@@ -119,6 +125,6 @@ Once you give me `<LIVE_URL>`, the demo creds, and `<VIDEO_URL>` / blog URL, I f
 | D1 — architecture diagram | ✅ done (`docs/architecture-diagram.png`) |
 | D2/D3/D4/D5 — video, description, testing, blog | ✍️ drafted; record + publish + fill URLs |
 | C — ECS deploy | 🔧 hardened (wiring fixed, demo auto-seeds); ⏳ provision + first live boot |
-| Voucher | ⏳ pending (you) |
+| Voucher | ⏭️ optional — skippable (Qwen free quota + ECS free-trial credits cover it) |
 
 *Phase-2 "SuperAyin" work is parked on the `superayin-phase2` branch — keep it off `main` until after submission.*
