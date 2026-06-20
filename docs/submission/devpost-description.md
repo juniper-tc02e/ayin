@@ -1,6 +1,6 @@
 # Devpost submission — Ayin
 
-Paste-ready copy for the Devpost form. Live URL is filled in (https://47.84.226.70.sslip.io); fill the remaining `<VIDEO_URL>` once the demo video is recorded.
+Paste-ready copy for the Devpost form. Live URL is filled in (https://superayin.com); fill the remaining `<VIDEO_URL>` once the demo video is recorded.
 
 ---
 
@@ -54,7 +54,7 @@ Next.js + TypeScript (App Router) frontend · Python FastAPI gateway + Celery wo
 `docs/architecture-diagram.png` (attach to the submission).
 
 ## Testing instructions
-See `docs/submission/testing-instructions.md`. Live demo: **https://47.84.226.70.sslip.io**, demo credentials provided there; free to access for judges through July 31.
+See `docs/submission/testing-instructions.md`. Live demo: **https://superayin.com**, demo credentials provided there; free to access for judges through July 31.
 
 ## Links
 - Repo (public, AGPL-3.0): https://github.com/juniper-tc02e/ayin
