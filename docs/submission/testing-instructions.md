@@ -2,13 +2,13 @@
 
 Two ways to try Ayin: the **hosted demo** (fastest) and a **local run** (no account needed, fully reproducible). Both use a synthetic data source, so every finding is clearly labeled "(FAKE)" — nothing on screen is a real person's data.
 
-> Fill `<LIVE_URL>` once the Alibaba Cloud ECS deploy is up (Workstream C). The hosted instance stays free to access through **July 31, 2026**.
+> The hosted demo is **live at https://47.84.226.70.sslip.io** (Alibaba Cloud ECS, real Let's Encrypt cert) — free to access for judges through **July 31, 2026**.
 
 ---
 
 ## Option A — hosted demo (recommended)
 
-1. Go to **`<LIVE_URL>`** and click **Log in**.
+1. Go to **https://47.84.226.70.sslip.io** and click **Log in**.
 2. Sign in with the demo account:
    - **Email:** `demo-ayin@example.org`
    - **Password:** `ayin-demo-password-1`
