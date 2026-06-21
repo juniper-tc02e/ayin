@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, ScoreData } from "@/lib/api";
-
-const BAND_COLORS: [number, string][] = [
-  [80, "var(--down)"],
-  [55, "var(--warn)"],
-  [30, "var(--accent)"],
-  [0, "var(--ok)"],
-];
+import ScoreRing, { bandColor } from "@/components/ScoreRing";
 
 const CATEGORY_LABELS: Record<string, string> = {
   credential: "Credentials",
@@ -17,11 +11,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   records: "Records",
   linkage: "Linkage",
 };
-
-function bandColor(score: number): string {
-  for (const [min, color] of BAND_COLORS) if (score >= min) return color;
-  return "var(--ok)";
-}
 
 export default function ScorePanel({
   scanId,
@@ -41,24 +30,16 @@ export default function ScorePanel({
 
   return (
     <div className="card" style={{ borderColor: bandColor(score.overall) }}>
-      <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-        <div style={{ textAlign: "center", minWidth: 110 }}>
-          <div
-            style={{
-              fontSize: "3rem",
-              fontWeight: 700,
-              lineHeight: 1,
-              color: bandColor(score.overall),
-            }}
+      <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
+        <ScoreRing value={score.overall} size={132} label="Exposure Score" sublabel="0–100" />
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <p style={{ margin: "0 0 0.5rem" }}>{score.verdict}</p>
+          <span
+            className="pill"
+            style={{ marginBottom: "0.6rem", color: "var(--sev-low)", borderColor: "color-mix(in srgb, var(--sev-low) 40%, transparent)" }}
           >
-            {score.overall}
-          </div>
-          <div className="dim" style={{ fontSize: "0.75rem", marginTop: "0.25rem" }}>
-            Exposure Score · 0–100
-          </div>
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: "0 0 0.6rem" }}>{score.verdict}</p>
+            Measures your data&apos;s exposure — never you · and here&apos;s how to lower it
+          </span>
           {Object.entries(score.subscores).map(([cat, value]) => (
             <div key={cat} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: 3 }}>
               <span className="dim" style={{ fontSize: "0.75rem", width: 86 }}>
@@ -84,8 +65,7 @@ export default function ScorePanel({
       </div>
 
       <p className="dim" style={{ fontSize: "0.75rem", margin: "0.75rem 0 0" }}>
-        Measures how exposed your <em>data</em> is — never a judgment of you. Rubric v
-        {score.rubric_version}.{" "}
+        Rubric v{score.rubric_version}.{" "}
         <button
           onClick={() => setShowContributors(!showContributors)}
           style={{

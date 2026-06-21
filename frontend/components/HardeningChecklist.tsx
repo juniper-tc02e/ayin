@@ -55,6 +55,7 @@ export default function HardeningChecklist({
           key={item.finding_id}
           item={item}
           index={topOnly ? idx + 1 : undefined}
+          anchorId={topOnly ? undefined : `fix-${item.finding_id}`}
           open={open === item.finding_id}
           onToggle={() => {
             const next = open === item.finding_id ? null : item.finding_id;
@@ -76,11 +77,13 @@ export default function HardeningChecklist({
 function ChecklistRow({
   item,
   index,
+  anchorId,
   open,
   onToggle,
 }: {
   item: ChecklistItem;
   index?: number;
+  anchorId?: string;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -95,10 +98,16 @@ function ChecklistRow({
   const [showStandard, setShowStandard] = useState(false);
 
   return (
-    <div style={{ borderTop: "1px solid var(--border)", padding: "0.6rem 0" }}>
-      <div
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.5rem", cursor: "pointer" }}
+    <div id={anchorId} style={{ borderTop: "1px solid var(--border)", padding: "0.6rem 0", scrollMarginTop: "80px" }}>
+      <button
+        type="button"
         onClick={onToggle}
+        aria-expanded={open}
+        style={{
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+          gap: "0.5rem", cursor: "pointer", width: "100%", background: "none",
+          border: "none", padding: 0, font: "inherit", color: "inherit", textAlign: "left",
+        }}
       >
         <span>
           {index ? <strong>{index}. </strong> : null}
@@ -112,7 +121,7 @@ function ChecklistRow({
           )}
           <code className="dim" style={{ fontSize: "0.8rem" }}>{item.effort} effort</code>
         </span>
-      </div>
+      </button>
 
       {open &&
         (hasPersonalized ? (

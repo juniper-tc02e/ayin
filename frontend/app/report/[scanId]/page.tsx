@@ -123,7 +123,9 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
       {/* 4. Full remediation plan — the first checklist fetch can take
           seconds (it generates the B3 personalized steps), so show a
           placeholder rather than an orphaned heading over blank space */}
-      <h2 style={{ fontSize: "1.05rem", marginTop: "1.5rem" }}>Your remediation plan</h2>
+      <h2 id="remediation-plan" style={{ fontSize: "1.05rem", marginTop: "1.5rem", scrollMarginTop: "80px" }}>
+        Your remediation plan
+      </h2>
       {checklist === null ? (
         <p className="dim" style={{ fontSize: "0.85rem" }}>
           Building your personalized plan…

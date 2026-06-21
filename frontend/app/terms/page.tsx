@@ -1,4 +1,11 @@
-export const metadata = { title: "Ayin — Terms of Service & Acceptable Use" };
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms & acceptable use",
+  description:
+    "Ayin's terms and acceptable-use policy. Self-scan only; not a consumer reporting agency.",
+  alternates: { canonical: "/terms" },
+};
 
 export default function TermsPage() {
   return (

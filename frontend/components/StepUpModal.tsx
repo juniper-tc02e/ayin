@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 
 export default function StepUpModal({
@@ -13,6 +13,15 @@ export default function StepUpModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Escape closes the dialog (keyboard parity with the scrim click).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,8 +54,11 @@ export default function StepUpModal({
         className="card"
         style={{ maxWidth: 380, width: "90%", margin: 0 }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stepup-title"
       >
-        <h2 style={{ marginTop: 0, fontSize: "1rem" }}>Confirm it&apos;s you</h2>
+        <h2 id="stepup-title" style={{ marginTop: 0, fontSize: "1rem" }}>Confirm it&apos;s you</h2>
         <p className="dim" style={{ fontSize: "0.9rem" }}>
           Credential-exposure details are extra sensitive, so we ask for your password
           again before showing them. The unlock lasts a few minutes and is logged to
@@ -56,6 +68,7 @@ export default function StepUpModal({
           type="password"
           autoFocus
           required
+          aria-label="Your password"
           placeholder="Your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -71,7 +84,7 @@ export default function StepUpModal({
             type="submit"
             disabled={busy}
             style={{
-              padding: "0.5rem 1rem", background: "var(--accent)", color: "#06222e",
+              padding: "0.5rem 1rem", background: "var(--accent)", color: "var(--on-iris)",
               border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer",
             }}
           >

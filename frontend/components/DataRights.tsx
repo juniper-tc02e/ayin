@@ -63,6 +63,7 @@ export default function DataRights() {
             <code>DELETE</code> and your password to confirm.
           </p>
           <input
+            aria-label="Type DELETE to confirm"
             placeholder='Type "DELETE"'
             value={ack}
             onChange={(e) => setAck(e.target.value)}
@@ -70,6 +71,7 @@ export default function DataRights() {
           />
           <input
             type="password"
+            aria-label="Your password"
             placeholder="Your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

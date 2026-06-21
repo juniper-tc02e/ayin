@@ -38,65 +38,48 @@ export default function AuthForm({ mode }: { mode: "signup" | "login" }) {
   }
 
   return (
-    <form onSubmit={submit} className="card" style={{ display: "grid", gap: "0.75rem" }}>
-      <label>
-        Email
+    <form onSubmit={submit} className="card card--raised" style={{ marginTop: 0 }}>
+      <div className="field">
+        <label htmlFor="auth-email">Email</label>
         <input
+          id="auth-email"
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
         />
-      </label>
-      <label>
-        Password {mode === "signup" && <span className="dim">(10+ characters)</span>}
+      </div>
+      <div className="field">
+        <label htmlFor="auth-password">
+          Password {mode === "signup" && <span className="dim">(10+ characters)</span>}
+        </label>
         <input
+          id="auth-password"
           type="password"
           required
           minLength={mode === "signup" ? 10 : 1}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={inputStyle}
         />
-      </label>
+      </div>
       {mode === "signup" && inviteRequired && (
-        <label>
-          Invite code <span className="dim">(Ayin is in private beta)</span>
+        <div className="field">
+          <label htmlFor="auth-invite">
+            Invite code <span className="dim">(Ayin is in private beta)</span>
+          </label>
           <input
+            id="auth-invite"
             required
             placeholder="AYIN-XXXX-XXXX"
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-            style={inputStyle}
           />
-        </label>
+        </div>
       )}
-      {error && <p style={{ color: "var(--down)", margin: 0 }}>{error}</p>}
-      <button type="submit" disabled={busy} style={buttonStyle}>
+      {error && <p style={{ color: "var(--down)", margin: "0 0 var(--sp-3)" }}>{error}</p>}
+      <button type="submit" disabled={busy} className="btn btn-primary" style={{ width: "100%" }}>
         {busy ? "…" : mode === "signup" ? "Create account" : "Log in"}
       </button>
     </form>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  marginTop: "0.25rem",
-  padding: "0.5rem 0.75rem",
-  background: "var(--bg)",
-  color: "var(--text)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: "0.6rem 1rem",
-  background: "var(--accent)",
-  color: "#06222e",
-  border: "none",
-  borderRadius: 8,
-  fontWeight: 600,
-  cursor: "pointer",
-};

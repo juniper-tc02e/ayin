@@ -65,7 +65,7 @@ export default function ExcludePage() {
             {busy ? "…" : "Send confirmation link"}
           </button>
           <p className="dim" style={{ margin: 0, fontSize: "0.8rem" }}>
-            Phone numbers and other identifiers: email privacy@ayin.example for now.
+            Phone numbers and other identifiers: email privacy@superayin.com for now.
           </p>
         </form>
       )}

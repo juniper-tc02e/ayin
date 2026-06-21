@@ -19,6 +19,23 @@ const SENSITIVITY_COLOR: Record<Finding["sensitivity"], string> = {
   low: "var(--text-dim)",
 };
 
+// Word-led severity (calm-not-alarmist + WCAG 1.4.1): the WORD carries the
+// meaning; color only supports it. "Sensitive" reads gentler than "Critical".
+const SENSITIVITY_WORD: Record<Finding["sensitivity"], string> = {
+  critical: "Sensitive",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
+// Jump to the matching remediation item, falling back to the plan section.
+function scrollToFix(findingId: string) {
+  const el =
+    document.getElementById(`fix-${findingId}`) ||
+    document.getElementById("remediation-plan");
+  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 export default function FindingsList({
   scanId,
   onReviewed,
@@ -114,11 +131,22 @@ export default function FindingsList({
                 <span
                   className="dot"
                   style={{ background: SENSITIVITY_COLOR[f.sensitivity], flexShrink: 0 }}
-                  title={`sensitivity: ${f.sensitivity}`}
+                  aria-hidden
                 />
-                <div>
-                  <p style={{ margin: 0 }}>{f.summary}</p>
-                  <p className="dim" style={{ margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <span
+                      className="pill"
+                      style={{
+                        color: SENSITIVITY_COLOR[f.sensitivity],
+                        borderColor: `color-mix(in srgb, ${SENSITIVITY_COLOR[f.sensitivity]} 40%, transparent)`,
+                      }}
+                    >
+                      {SENSITIVITY_WORD[f.sensitivity]}
+                    </span>
+                    <span>{f.summary}</span>
+                  </p>
+                  <p className="meta" style={{ margin: "0.35rem 0 0" }}>
                     {f.source_name} · confidence {(f.confidence * 100).toFixed(0)}% ·
                     captured {new Date(f.captured_at).toLocaleDateString()}
                     {f.source_url && (
@@ -136,6 +164,17 @@ export default function FindingsList({
                       <> · <span style={{ color: "var(--ok)" }}>confirmed by you</span></>
                     )}
                   </p>
+                  <p style={{ margin: "0.35rem 0 0" }}>
+                    <button
+                      onClick={() => scrollToFix(f.id)}
+                      style={{
+                        background: "none", border: "none", color: "var(--iris-400)",
+                        cursor: "pointer", padding: 0, font: "inherit", fontSize: "0.8rem",
+                      }}
+                    >
+                      Fix this →
+                    </button>
+                  </p>
                   {f.conflicts.length > 0 && (
                     <p style={{ margin: "0.3rem 0 0", fontSize: "0.8rem", color: "var(--warn)" }}>
                       ⚠ Sources disagree on{" "}
@@ -149,7 +188,7 @@ export default function FindingsList({
                         onClick={() => setExpanded(expanded === f.id ? null : f.id)}
                         style={{
                           background: "none", border: "1px solid var(--border)",
-                          color: "var(--accent)", borderRadius: 6, cursor: "pointer",
+                          color: "var(--accent)", borderRadius: "var(--r-sm)", cursor: "pointer",
                           padding: "0.2rem 0.6rem", fontSize: "0.8rem",
                         }}
                       >
