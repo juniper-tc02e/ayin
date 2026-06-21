@@ -106,6 +106,41 @@ def test_add_second_email_uses_identifier_link_flow(client, sender, signed_up):
     assert rows["Second.Fake@Example.ORG"]["verification_state"] == "verified"
 
 
+def test_console_sms_sender_constructs_in_prod_but_refuses_to_send(monkeypatch):
+    """Regression for the prod 500: the SMS sender is wired as a FastAPI
+    dependency on EVERY identifier request, so constructing it must not raise in
+    production (the old guard in __init__ 500'd every POST /identifiers — even
+    adding an email or username, which send no SMS). The guard belongs at the
+    actual send instead."""
+    from ayin.config import Settings, get_settings  # noqa: PLC0415
+    from ayin.services.sms import ConsoleSmsSender  # noqa: PLC0415
+
+    monkeypatch.setattr(Settings, "is_production", property(lambda self: True))
+    sender = ConsoleSmsSender(get_settings())  # must NOT raise (built via DI per-request)
+    with pytest.raises(RuntimeError):
+        sender.send_otp(to="+15550000000", code="123456")  # but actually sending is refused
+
+
+def test_add_identifier_does_not_500_in_production(unique_email, monkeypatch):
+    """End-to-end regression: with the REAL sms dependency (not the recording
+    override) and production mode, adding identifiers must return 201, not 500."""
+    from ayin.config import Settings, get_settings  # noqa: PLC0415
+
+    monkeypatch.setattr(Settings, "is_production", property(lambda self: True))
+    # bypass only the startup dev-secret guard so we can exercise prod-mode DI
+    monkeypatch.setattr(Settings, "assert_production_safe", lambda self: None)
+    app = create_app(get_settings())
+    # Recording email so signup + email-add succeed; the bug under test is the
+    # REAL sms dependency (NOT overridden) being constructed in prod mode, which
+    # used to raise at __init__ and 500 every POST /identifiers.
+    app.dependency_overrides[get_email_sender] = lambda: RecordingSender()
+    with TestClient(app) as c:
+        assert c.post("/auth/signup", json={"email": unique_email, "password": FAKE_PASSWORD}).status_code == 201
+        assert c.post("/identifiers", json={"kind": "username", "value": "produser2026"}).status_code == 201
+        r = c.post("/identifiers", json={"kind": "email", "value": "prod2026@example.org"})
+        assert r.status_code == 201, r.text
+
+
 def test_add_email_survives_send_failure(client, signed_up):
     """Regression: a box with no reachable SMTP must NOT 500 the add or lose the
     identifier. The row is created (unverified) and challenge_sent reports False
