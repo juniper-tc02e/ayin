@@ -47,7 +47,7 @@ def get_my_subject(user: CurrentUser, db: DbDep) -> Subject:
     return subject
 
 
-def _out(ident: Identifier) -> IdentifierOut:
+def _out(ident: Identifier, challenge_sent: bool | None = None) -> IdentifierOut:
     return IdentifierOut(
         id=ident.id,
         kind=ident.kind.value,
@@ -56,6 +56,7 @@ def _out(ident: Identifier) -> IdentifierOut:
         challengeable=ident.kind in CHALLENGEABLE_KINDS,
         verified_at=ident.verified_at,
         created_at=ident.created_at,
+        challenge_sent=challenge_sent,
     )
 
 
@@ -176,10 +177,27 @@ def add_identifier(
     from ayin.analytics import track  # noqa: PLC0415
 
     track(db, "identifier_added", user_id=user.id, properties={"kind": kind.value})
+    challenge_sent: bool | None = None
     if kind in CHALLENGEABLE_KINDS:
-        _send_identifier_challenge(db, settings, email_sender, sms_sender, user, ident)
+        challenge_sent = True
+        try:
+            _send_identifier_challenge(db, settings, email_sender, sms_sender, user, ident)
+        except HTTPException:
+            raise
+        except Exception:
+            # A failed verification send must NEVER lose the identifier — the row
+            # is already created, so Add succeeds and the user can retry "Send
+            # link". (e.g. a box with no reachable SMTP raises OSError instead of
+            # the dev console fallback; that must not 500 the whole request.)
+            challenge_sent = False
+            log.exception("verification challenge send failed for identifier %s", ident.id)
+            record_event(
+                db, actor=user_actor(user.id), event_type="identifier.challenge_failed",
+                subject_id=subject.id,
+                detail={"identifier_id": str(ident.id), "kind": kind.value},
+            )
     db.commit()
-    return _out(ident)
+    return _out(ident, challenge_sent=challenge_sent)
 
 
 @router.post("/{identifier_id}/send-challenge", response_model=MessageOut)

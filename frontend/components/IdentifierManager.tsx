@@ -11,6 +11,9 @@ type Identifier = {
   challengeable: boolean;
   verified_at: string | null;
   created_at: string;
+  // Only on the create response: false = identifier added but the verification
+  // challenge couldn't be sent (retry via "Send link"/"Send code").
+  challenge_sent?: boolean | null;
 };
 
 const KINDS = [
@@ -156,8 +159,22 @@ export default function IdentifierManager({
               body: { kind, value },
             });
             setValue("");
-            if (created.kind === "phone") setOtpFor(created.id);
-          }, kind === "email" ? "Added — verification email sent." : kind === "phone" ? "Added — code sent." : "Added.");
+            const sendFailed = created.challengeable && created.challenge_sent === false;
+            if (created.kind === "phone" && !sendFailed) setOtpFor(created.id);
+            // Honest notice: the identifier is always added; say so even when the
+            // verification challenge couldn't be delivered.
+            setNotice(
+              sendFailed
+                ? created.kind === "phone"
+                  ? "Added — but we couldn’t send the code right now. Use “Send code” to retry."
+                  : "Added — but we couldn’t send the verification email right now. Use “Send link” to retry."
+                : created.kind === "email"
+                  ? "Added — verification email sent."
+                  : created.kind === "phone"
+                    ? "Added — code sent."
+                    : "Added."
+            );
+          });
         }}
       >
         <select value={kind} onChange={(e) => setKind(e.target.value)} style={inputStyle}>

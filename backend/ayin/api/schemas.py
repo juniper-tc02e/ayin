@@ -61,6 +61,10 @@ class IdentifierOut(BaseModel):
     challengeable: bool
     verified_at: datetime | None
     created_at: datetime
+    # Set only on the create response: did the verification challenge actually
+    # go out? None when not applicable (list responses, non-challengeable kinds).
+    # False means the identifier was still created — the user can retry "Send link".
+    challenge_sent: bool | None = None
 
 
 class VerifyIdentifierEmailIn(BaseModel):

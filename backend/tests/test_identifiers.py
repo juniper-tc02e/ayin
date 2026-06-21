@@ -36,6 +36,14 @@ class RecordingSms:
         self.sent.append({"to": to, "code": code})
 
 
+class FailingSender:
+    """A box with no reachable SMTP raises OSError on send. Regression guard for
+    the prod bug where that 500'd the whole add and lost the identifier."""
+
+    def send(self, *, to: str, subject: str, body: str) -> None:
+        raise OSError("SMTP unreachable (test)")
+
+
 @pytest.fixture()
 def sender():
     return RecordingSender()
@@ -96,6 +104,28 @@ def test_add_second_email_uses_identifier_link_flow(client, sender, signed_up):
 
     rows = {r["value"]: r for r in client.get("/identifiers").json()}
     assert rows["Second.Fake@Example.ORG"]["verification_state"] == "verified"
+
+
+def test_add_email_survives_send_failure(client, signed_up):
+    """Regression: a box with no reachable SMTP must NOT 500 the add or lose the
+    identifier. The row is created (unverified) and challenge_sent reports False
+    so the UI can prompt a retry."""
+    client.app.dependency_overrides[get_email_sender] = lambda: FailingSender()
+    res = client.post("/identifiers", json={"kind": "email", "value": "newfake@example.org"})
+    assert res.status_code == 201, res.text  # NOT 500
+    body = res.json()
+    assert body["challenge_sent"] is False
+    assert body["verification_state"] == "unverified"
+    rows = {r["value"]: r for r in client.get("/identifiers").json()}
+    assert "newfake@example.org" in rows  # really persisted
+
+
+def test_add_email_reports_challenge_sent_true_on_success(client, signed_up):
+    """The happy path sets challenge_sent True so the UI shows 'email sent'."""
+    res = client.post("/identifiers", json={"kind": "email", "value": "ok@example.org"})
+    assert res.status_code == 201, res.text
+    assert res.json()["challenge_sent"] is True
+    assert res.json()["verification_state"] == "pending"
 
 
 def test_phone_otp_flow(client, sms, signed_up):
