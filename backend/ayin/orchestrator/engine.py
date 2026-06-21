@@ -113,6 +113,15 @@ def build_seed_queries(
         context: dict[str, str] = {}
         if ident.kind == IdentifierKind.FULL_NAME and city:
             context["city"] = city
+        if ident.kind == IdentifierKind.USERNAME:
+            # UF5: a bio-code-verified username is proven-owned (not a namesake), so
+            # the footprint connector trusts it (verified tier) and can probe
+            # sensitive sites with opt-in; an unverified handle stays asserted.
+            context["ownership_tier"] = (
+                "verified"
+                if ident.verification_state == VerificationState.VERIFIED
+                else "asserted"
+            )
         seeds.append(
             SeedQuery(
                 kind=ident.kind,

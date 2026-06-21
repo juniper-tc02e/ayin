@@ -103,6 +103,28 @@ def _item_for(f: Finding, delta: int, elevated: bool) -> ChecklistItem:
             steps=steps, expected_score_delta=delta, effort="medium",
         )
 
+    if f.category == FindingCategory.SOCIAL and payload.get("site_id"):
+        # Username-footprint per-site finding → concrete removal/hardening flow
+        # from the site's own opt-out, like the broker items (UF4).
+        site = str(payload.get("site") or "this site")
+        steps = []
+        if payload.get("opt_out_instructions"):
+            steps.append(str(payload["opt_out_instructions"]).strip())
+        if payload.get("opt_out_url"):
+            steps.append(f"Account settings: {payload['opt_out_url']}")
+        if not steps:
+            steps.append(f"Open your {site} profile and delete it, or make it private.")
+        steps.append(
+            "Reusing this handle elsewhere? A distinct username per account makes you "
+            "harder to track across sites."
+        )
+        return ChecklistItem(
+            finding_id=str(f.id), category=f.category.value,
+            sensitivity=f.sensitivity.value,
+            title=f"Lock down or remove your {site} profile",
+            steps=steps, expected_score_delta=delta, effort="medium",
+        )
+
     if f.category == FindingCategory.SOCIAL:
         platform = str(payload.get("platform") or "a public page")
         steps = [
@@ -119,6 +141,23 @@ def _item_for(f: Finding, delta: int, elevated: bool) -> ChecklistItem:
             sensitivity=f.sensitivity.value,
             title=f"Review a public mention on {platform}",
             steps=steps, expected_score_delta=delta, effort="low",
+        )
+
+    if f.category == FindingCategory.LINKAGE and payload.get("kind") == "handle_linkage":
+        handle = str(payload.get("handle") or "your handle")
+        count = payload.get("site_count")
+        scope = f" across {count} sites" if count else ""
+        return ChecklistItem(
+            finding_id=str(f.id), category=f.category.value,
+            sensitivity=f.sensitivity.value,
+            title="Make your accounts harder to link together",
+            steps=[
+                f"The handle “{handle}” is reused{scope}, so finding one of your accounts "
+                "reveals the others.",
+                "Use distinct usernames for the accounts you want to keep separate.",
+                "Make profiles you don't need public private, or remove them.",
+            ],
+            expected_score_delta=delta, effort="medium",
         )
 
     return ChecklistItem(

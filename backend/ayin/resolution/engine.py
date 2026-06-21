@@ -27,11 +27,16 @@ import logging
 import uuid
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from ayin.models import Finding, Identifier, Scan
-from ayin.models.enums import FindingState, MatchStatus
+from ayin.models.enums import (
+    FindingState,
+    IdentifierKind,
+    MatchStatus,
+    VerificationState,
+)
 from ayin.resolution.canonical import canonical_exposure_key
 from ayin.safety.audit import record_scan_event, system_actor
 from ayin.services.normalize import CHALLENGEABLE_KINDS
@@ -143,12 +148,22 @@ def _find_conflicts(members: list[Finding]) -> list[dict]:
 
 
 def _match_pass(db: Session, scan: Scan, primaries: list[Finding]) -> dict:
+    # Control-verified seeds whose findings bypass the anti-namesake cap: the
+    # verified email/phone anchors, PLUS any username the user has proven control
+    # of via the UF5 bio-code (a proven-owned handle is, by definition, not a
+    # namesake). Unverified usernames/names/cities stay capped.
     verified_challengeable = {
         row
         for row in db.execute(
             select(Identifier.id).where(
                 Identifier.subject_id == scan.subject_id,
-                Identifier.kind.in_(list(CHALLENGEABLE_KINDS)),
+                or_(
+                    Identifier.kind.in_(list(CHALLENGEABLE_KINDS)),
+                    and_(
+                        Identifier.kind == IdentifierKind.USERNAME,
+                        Identifier.verification_state == VerificationState.VERIFIED,
+                    ),
+                ),
             )
         ).scalars()
     }

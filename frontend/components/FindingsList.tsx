@@ -182,7 +182,10 @@ export default function FindingsList({
                       merged.
                     </p>
                   )}
-                  {f.category === "broker" && f.payload.removable === true && (
+                  {/* Removal flow for any finding the source marks removable —
+                      data brokers (opt-out) and username-footprint profiles
+                      (per-site delete/lock-down). websearch SOCIAL doesn't set it. */}
+                  {f.payload.removable === true && (
                     <div style={{ marginTop: "0.4rem" }}>
                       <button
                         onClick={() => setExpanded(expanded === f.id ? null : f.id)}
@@ -201,21 +204,27 @@ export default function FindingsList({
                             background: "var(--bg)", borderRadius: 8, fontSize: "0.85rem",
                           }}
                         >
-                          <p style={{ marginTop: 0 }}>
-                            {String(f.payload.opt_out_instructions ?? "")}
-                          </p>
-                          <p style={{ marginBottom: 0 }}>
-                            <a
-                              href={String(f.payload.opt_out_url ?? "#")}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                            >
-                              Open the opt-out page ↗
-                            </a>{" "}
-                            <span className="dim">
-                              · typical processing: {String(f.payload.expected_processing ?? "varies")}
-                            </span>
-                          </p>
+                          {f.payload.opt_out_instructions != null && (
+                            <p style={{ marginTop: 0 }}>
+                              {String(f.payload.opt_out_instructions)}
+                            </p>
+                          )}
+                          {f.payload.opt_out_url != null && (
+                            <p style={{ marginBottom: 0 }}>
+                              <a
+                                href={String(f.payload.opt_out_url)}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                              >
+                                Open the removal page ↗
+                              </a>
+                              {f.payload.expected_processing != null && (
+                                <span className="dim">
+                                  {" "}· typical processing: {String(f.payload.expected_processing)}
+                                </span>
+                              )}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

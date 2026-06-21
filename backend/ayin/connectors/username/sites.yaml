@@ -1,0 +1,240 @@
+# Username Footprint — vetted site manifest (UF1)
+#
+# Ayin-owned, ToS-REVIEWED derivative of the Sherlock project's detection manifest
+# (https://github.com/sherlock-project/sherlock, MIT License). Detection mechanics
+# (the three errorType strategies, regexCheck, request shaping) are derived from
+# Sherlock's `data.json`; the site selection here is a deliberately SMALL, reviewed
+# allowlist — not a wholesale import. Each row carries an Ayin governance block.
+#
+# tos_status is the gate: ONLY `ok` rows are probed in production (sites_loader.
+# enabled_sites). `unvetted`/`blocked`/`auth_required` rows are parsed + validated
+# but never hit the network — they document the review backlog and exercise the gate.
+#
+# fixtures.claimed/unclaimed are synthetic handles for contract tests (mock
+# transports), never real PII. Where a row has regex_check, the fixtures match it.
+
+# ── code / dev ───────────────────────────────────────────────────────
+- id: github
+  name: GitHub
+  category: code
+  url_template: "https://github.com/{username}"
+  url_main: "https://github.com/"
+  detection: { method: status_code, found_codes: [200] }
+  regex_check: "^[A-Za-z0-9-]{1,39}$"
+  sensitivity: low
+  removable: true
+  opt_out:
+    url: "https://github.com/settings/admin"
+    instructions: "Settings → Account → Delete account; or make the profile sparse / private."
+    expected_processing: "immediate"
+  governance: { access_method: public_page, tos_status: ok, robots_required: true, rate_limit_per_minute: 30 }
+  fixtures: { claimed: "octocat", unclaimed: "ayin-absent-zzq000" }
+
+- id: gitlab
+  name: GitLab
+  category: code
+  url_template: "https://gitlab.com/{username}"
+  url_main: "https://gitlab.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: true
+  opt_out: { url: "https://gitlab.com/-/profile/account", instructions: "Account → Delete account.", expected_processing: "immediate" }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "gitlab-org", unclaimed: "ayinabsentzzq000" }
+
+- id: dev_to
+  name: "DEV Community"
+  category: forum
+  url_template: "https://dev.to/{username}"
+  url_main: "https://dev.to/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: true
+  opt_out: { url: "https://dev.to/settings/account", instructions: "Settings → Account → Delete account." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: replit
+  name: Replit
+  category: code
+  url_template: "https://replit.com/@{username}"
+  url_main: "https://replit.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: true
+  opt_out: { url: "https://replit.com/account", instructions: "Account → Delete account, or hide your profile." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+# ── identity / profile ───────────────────────────────────────────────
+- id: keybase
+  name: Keybase
+  category: social
+  url_template: "https://keybase.io/{username}"
+  url_main: "https://keybase.io/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: medium
+  removable: true
+  opt_out: { url: "https://keybase.io/account/delete_me", instructions: "Settings → Your account → Delete account." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: about_me
+  name: About.me
+  category: social
+  url_template: "https://about.me/{username}"
+  url_main: "https://about.me/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: medium
+  removable: true
+  opt_out: { url: "https://about.me/account", instructions: "Account settings → Delete account." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: gravatar
+  name: Gravatar
+  category: social
+  url_template: "https://en.gravatar.com/{username}"
+  url_main: "https://gravatar.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: medium  # gravatar links a handle/email to a public avatar + profile
+  removable: true
+  opt_out: { url: "https://gravatar.com/profiles/edit/", instructions: "Edit/remove the profile or the linked email." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: wikipedia
+  name: "Wikipedia (user page)"
+  category: forum
+  url_template: "https://en.wikipedia.org/wiki/User:{username}"
+  url_main: "https://en.wikipedia.org/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: false
+  governance: { access_method: public_page, tos_status: ok, rate_limit_per_minute: 20 }
+  fixtures: { claimed: "Jimbo_Wales", unclaimed: "Ayinabsentzzq000" }
+
+# ── creative / community ─────────────────────────────────────────────
+- id: vimeo
+  name: Vimeo
+  category: creative
+  url_template: "https://vimeo.com/{username}"
+  url_main: "https://vimeo.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: true
+  opt_out: { url: "https://vimeo.com/settings", instructions: "Settings → delete or privatise the account." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: buymeacoffee
+  name: "Buy Me a Coffee"
+  category: creative
+  url_template: "https://www.buymeacoffee.com/{username}"
+  url_main: "https://www.buymeacoffee.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: true
+  opt_out: { url: "https://www.buymeacoffee.com/settings", instructions: "Settings → Delete account." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: chess_com
+  name: "Chess.com"
+  category: gaming
+  url_template: "https://www.chess.com/member/{username}"
+  url_main: "https://www.chess.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: true
+  opt_out: { url: "https://www.chess.com/settings", instructions: "Settings → Close account." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: lobsters
+  name: "Lobste.rs"
+  category: forum
+  url_template: "https://lobste.rs/~{username}"
+  url_main: "https://lobste.rs/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: low
+  removable: false
+  governance: { access_method: public_page, tos_status: ok, rate_limit_per_minute: 20 }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+# ── message-based detection (site returns 200, body says "not found") ─
+- id: hackernews
+  name: "Hacker News"
+  category: forum
+  url_template: "https://news.ycombinator.com/user?id={username}"
+  url_main: "https://news.ycombinator.com/"
+  detection: { method: message, notfound_markers: ["No such user."] }
+  regex_check: "^[A-Za-z0-9_-]{2,15}$"
+  sensitivity: low
+  removable: false
+  governance: { access_method: public_page, tos_status: ok, rate_limit_per_minute: 20 }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentz" }
+
+- id: steam
+  name: "Steam Community"
+  category: gaming
+  url_template: "https://steamcommunity.com/id/{username}"
+  url_main: "https://steamcommunity.com/"
+  detection: { method: message, notfound_markers: ["The specified profile could not be found."] }
+  sensitivity: low
+  removable: true
+  opt_out: { url: "https://store.steampowered.com/account/", instructions: "Set the profile to Private (Profile → Edit → Privacy)." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: pastebin
+  name: Pastebin
+  category: other
+  url_template: "https://pastebin.com/u/{username}"
+  url_main: "https://pastebin.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: medium  # public pastes under a handle can leak a lot
+  removable: true
+  opt_out: { url: "https://pastebin.com/settings", instructions: "Delete pastes / the account from settings." }
+  governance: { access_method: public_page, tos_status: ok }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+# ── NON-`ok` rows: parsed + validated, but NEVER probed (gate demo) ───
+- id: reddit
+  name: Reddit
+  category: social
+  url_template: "https://www.reddit.com/user/{username}"
+  url_main: "https://www.reddit.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: medium
+  removable: true
+  # Reddit's automated-access stance + aggressive anti-bot needs counsel review
+  # before we probe it. Parsed, but enabled_sites() withholds it.
+  governance: { access_method: public_page, tos_status: unvetted }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }
+
+- id: instagram
+  name: Instagram
+  category: social
+  url_template: "https://www.instagram.com/{username}/"
+  url_main: "https://www.instagram.com/"
+  # response_url detection: anonymous hits to a missing profile redirect to login.
+  detection: { method: response_url, notfound_url_contains: "/accounts/login" }
+  sensitivity: high
+  removable: true
+  # IG ToS forbids automated access without the Graph API → blocked, never probed.
+  governance: { access_method: public_page, tos_status: blocked }
+  fixtures: { claimed: "instagram", unclaimed: "ayinabsentzzq000" }
+
+- id: example_dating
+  name: "Example dating site"
+  category: dating
+  url_template: "https://example.com/u/{username}"
+  url_main: "https://example.com/"
+  detection: { method: status_code, found_codes: [200] }
+  sensitivity: critical
+  nsfw: true
+  # Sensitive + behind a login → auth_required; would only ever run for a Tier-1
+  # VERIFIED owner who explicitly opted in (UF5). Never probed by default.
+  governance: { access_method: public_page, tos_status: auth_required }
+  fixtures: { claimed: "ayindemo", unclaimed: "ayinabsentzzq000" }

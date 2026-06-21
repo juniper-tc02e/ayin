@@ -9,6 +9,7 @@ source without touching the core.
 import ayin.connectors.breach  # noqa: F401
 import ayin.connectors.broker.detector  # noqa: F401
 import ayin.connectors.fake  # noqa: F401
+import ayin.connectors.username.connector  # noqa: F401 — registered, NOT bootstrap-enabled
 import ayin.connectors.websearch  # noqa: F401
 from ayin.connectors.base import (
     AccessMethod,
