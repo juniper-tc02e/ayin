@@ -263,3 +263,69 @@ class ScanPreviewOut(BaseModel):
     seeds: list[PreviewSeedOut]
     connectors: list[PreviewConnectorOut]
     eta_seconds: int
+
+
+class ScanStartIn(BaseModel):
+    """Optional body for POST /scans. Omitted ⇒ scan yourself (T0). A
+    ``subject_id`` is the consented-third-party path; the gate refuses it
+    without a live grant."""
+
+    subject_id: uuid.UUID | None = None
+
+
+# ── Consent (T1: authorized third-party scans, PRD §20.5) ────────────
+
+
+class ConsentRequestIn(BaseModel):
+    """A requester asks a subject (by their own email) to authorize a scan."""
+
+    subject_email: EmailStr
+    usernames: list[str] = Field(default_factory=list, max_length=25)
+    purpose: str = Field(min_length=1, max_length=200)
+    ttl_days: int = Field(default=30, ge=1, le=365)
+
+
+class ConsentRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    subject_email: str
+    purpose: str
+    status: str
+    ttl_days: int
+    expires_at: datetime
+    created_at: datetime
+
+
+class ConsentAskOut(BaseModel):
+    """What the subject sees on the consent page (delivered via their link)."""
+
+    requester_email: str  # the subject deserves to know who is asking
+    subject_email: str
+    purpose: str
+    usernames: list[str]
+    ttl_days: int
+    expires_at: datetime
+
+
+class ConsentAcceptIn(BaseModel):
+    adult_attested: bool = False
+
+
+class ConsentAcceptOut(BaseModel):
+    granted: bool
+    subject_id: uuid.UUID
+    scope: str
+    expires_at: datetime
+
+
+class ConsentGrantOut(BaseModel):
+    """A live grant in the requester's 'authorized subjects' view."""
+
+    id: uuid.UUID
+    subject_id: uuid.UUID
+    subject_email: str | None = None
+    purpose: str
+    scope: str
+    granted_at: datetime
+    expires_at: datetime

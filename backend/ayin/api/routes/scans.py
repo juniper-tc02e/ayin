@@ -30,6 +30,7 @@ from ayin.api.schemas import (
     ReportOut,
     ScanOut,
     ScanProgress,
+    ScanStartIn,
     ScoreContributorOut,
     ScoreOut,
 )
@@ -51,6 +52,7 @@ _REFUSAL_HTTP: list[tuple[str, int]] = [
     ("rate_limited", status.HTTP_429_TOO_MANY_REQUESTS),
     ("no_verified_anchor", status.HTTP_422_UNPROCESSABLE_ENTITY),
     ("subject_excluded", status.HTTP_403_FORBIDDEN),
+    ("no_consent", status.HTTP_403_FORBIDDEN),
 ]
 
 
@@ -114,13 +116,24 @@ def _owned_scan(db, subject: Subject, scan_id: uuid.UUID) -> Scan:
 def start_scan(
     db: DbDep,
     settings: SettingsDep,
+    body: ScanStartIn | None = None,
     user=Depends(require_tos),  # ToS/AUP gate (FR-AUTH-2) on the way in
     registry: ConnectorRegistry = Depends(get_registry),
     vault: VaultProtocol = Depends(get_vault),
 ):
+    # Default: scan yourself (T0). A subject_id is the consented-third-party
+    # path — we hand the target to the engine, whose consent gate REFUSES it
+    # unless this requester holds a live grant. Loading the row authorizes
+    # nothing on its own.
+    target: Subject | None = None
+    if body is not None and body.subject_id is not None:
+        target = db.get(Subject, body.subject_id)
+        if target is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Subject not found.")
     inline = settings.scan_execution == "inline"
     scan, result = engine.start_scan(
-        db, requester=user, settings=settings, registry=registry, vault=vault, inline=inline
+        db, requester=user, settings=settings, registry=registry, vault=vault,
+        inline=inline, subject=target,
     )
     if not result.passed and result.decision.value == "refuse":
         code = next(

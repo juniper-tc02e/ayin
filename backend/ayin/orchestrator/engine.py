@@ -230,11 +230,20 @@ def _transition(
     )
 
 
-def create_scan(db: Session, *, requester: User, settings: Settings) -> Scan:
-    """Create the scan row (queued) + audit. Gates run in ``gate_scan``."""
-    subject = db.execute(
-        select(Subject).where(Subject.owner_user_id == requester.id)
-    ).scalar_one()
+def create_scan(
+    db: Session, *, requester: User, settings: Settings, subject: Subject | None = None
+) -> Scan:
+    """Create the scan row (queued) + audit. Gates run in ``gate_scan``.
+
+    ``subject`` defaults to the requester's own Subject (T0 self-scan). Passing a
+    different subject is the consented-third-party path (T1) — the consent gate
+    in ``run_gates`` then REFUSES it unless a live grant exists, so creating the
+    row here is never itself an authorization.
+    """
+    if subject is None:
+        subject = db.execute(
+            select(Subject).where(Subject.owner_user_id == requester.id)
+        ).scalar_one()
     scan = Scan(requester_user_id=requester.id, subject_id=subject.id)
     db.add(scan)
     db.flush()
@@ -506,10 +515,14 @@ def finalize_scan_if_complete(db: Session, scan_id: uuid.UUID) -> bool:
 
 def start_scan(
     db: Session, *, requester: User, settings: Settings, registry: ConnectorRegistry,
-    vault: VaultProtocol, inline: bool,
+    vault: VaultProtocol, inline: bool, subject: Subject | None = None,
 ) -> tuple[Scan, GateResult]:
-    """create → gate → (dispatch [+ inline-run]). The API calls this."""
-    scan = create_scan(db, requester=requester, settings=settings)
+    """create → gate → (dispatch [+ inline-run]). The API calls this.
+
+    ``subject`` defaults to the requester's self (T0). A non-self subject routes
+    through the consent gate, which refuses it without a live grant.
+    """
+    scan = create_scan(db, requester=requester, settings=settings, subject=subject)
     result = gate_scan(db, scan, settings)
     if result.passed:
         dispatch_scan(db, scan, registry)

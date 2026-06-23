@@ -70,6 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         analytics,
         auth,
         config,
+        consent,
         exclusions,
         findings,
         identifiers,
@@ -87,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tos.router)
     app.include_router(preview.router)
     app.include_router(scans.router)
+    app.include_router(consent.router)
     app.include_router(findings.router)
     app.include_router(exclusions.router)
     app.include_router(account.router)
