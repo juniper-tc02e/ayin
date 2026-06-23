@@ -50,6 +50,8 @@ _FLOW_HTTP = {
     "invalid_or_expired": status.HTTP_404_NOT_FOUND,
     "adult_attestation_required": status.HTTP_422_UNPROCESSABLE_ENTITY,
     "cannot_consent_to_self": status.HTTP_409_CONFLICT,
+    "already_pending": status.HTTP_409_CONFLICT,
+    "rate_limited": status.HTTP_429_TOO_MANY_REQUESTS,
 }
 
 

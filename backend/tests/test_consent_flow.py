@@ -171,6 +171,46 @@ def test_link_is_single_use(db):
     assert ei.value.code == "invalid_or_expired"
 
 
+def test_duplicate_pending_request_is_refused(db):
+    r = _requester(db)
+    email = _subject_email()
+    flow.request_consent(db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW)
+    db.commit()
+    with pytest.raises(ConsentFlowError) as ei:
+        flow.request_consent(db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW)
+    assert ei.value.code == "already_pending"
+
+
+def test_per_target_weekly_cap_blocks_repeated_asks(db):
+    r = _requester(db)
+    email = _subject_email()
+    for _ in range(flow.MAX_REQUESTS_PER_TARGET_PER_WEEK):
+        _req, raw = flow.request_consent(
+            db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW
+        )
+        db.commit()
+        flow.decline_consent(db, raw_token=raw, now=NOW)  # clear pending for the next ask
+        db.commit()
+    with pytest.raises(ConsentFlowError) as ei:
+        flow.request_consent(db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW)
+    assert ei.value.code == "rate_limited"
+
+
+def test_per_requester_daily_cap_blocks_email_bomb(db):
+    r = _requester(db)
+    for i in range(flow.MAX_REQUESTS_PER_DAY):
+        flow.request_consent(
+            db, requester=r, subject_email=f"t{i}-{uuid.uuid4().hex[:6]}@example.org",
+            usernames=[], purpose="x", now=NOW,
+        )
+        db.commit()
+    with pytest.raises(ConsentFlowError) as ei:
+        flow.request_consent(
+            db, requester=r, subject_email=_subject_email(), usernames=[], purpose="x", now=NOW
+        )
+    assert ei.value.code == "rate_limited"
+
+
 def test_accept_attaches_to_existing_user_without_creating_one(db, settings):
     # Subject is already a registered Ayin user.
     email = _subject_email()

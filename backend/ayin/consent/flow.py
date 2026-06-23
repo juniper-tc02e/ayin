@@ -23,7 +23,7 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ayin.consent.store import record_grant, revoke_grant
@@ -42,6 +42,11 @@ from ayin.services.normalize import IdentifierValidationError, normalize_identif
 
 REQUEST_TTL_DAYS = 7  # how long the *ask* (the link) stays valid
 MAX_USERNAMES = 25  # bound the handles a single request can carry
+# Anti-abuse caps (§20.5 "rate-limit it"): a consent request emails an arbitrary
+# address with requester-controlled text, so it is a harassment / email-bomb
+# vector if unbounded. Cap per-requester volume and re-asks of the same person.
+MAX_REQUESTS_PER_DAY = 20  # across all targets, per requester
+MAX_REQUESTS_PER_TARGET_PER_WEEK = 3  # re-asking the same person
 
 
 class ConsentFlowError(ValueError):
@@ -79,6 +84,54 @@ def _clean_usernames(raw_block: str) -> list[str]:
 # ── 1. Requester asks ────────────────────────────────────────────────
 
 
+def _enforce_request_limits(
+    db: Session, *, requester_id: uuid.UUID, email_norm: str, now: datetime
+) -> None:
+    """Pure read-only pre-check (no writes) that bounds the email-bomb /
+    harassment surface before any row is created. Raises ConsentFlowError."""
+    # An already-pending ask to this person — don't re-email them.
+    pending = db.execute(
+        select(ConsentRequest.id).where(
+            ConsentRequest.requester_user_id == requester_id,
+            ConsentRequest.subject_email == email_norm,
+            ConsentRequest.status == CONSENT_PENDING,
+            ConsentRequest.expires_at > now,
+        )
+    ).first()
+    if pending is not None:
+        raise ConsentFlowError(
+            "already_pending",
+            "You already have a pending consent request to this person — "
+            "wait for them to respond before sending another.",
+        )
+    # Re-asking the same person too often is harassment.
+    week = db.execute(
+        select(func.count(ConsentRequest.id)).where(
+            ConsentRequest.requester_user_id == requester_id,
+            ConsentRequest.subject_email == email_norm,
+            ConsentRequest.created_at >= now - timedelta(days=7),
+        )
+    ).scalar_one()
+    if week >= MAX_REQUESTS_PER_TARGET_PER_WEEK:
+        raise ConsentFlowError(
+            "rate_limited",
+            "You've asked this person several times recently. Please give them "
+            "space to respond.",
+        )
+    # Mass-emailing many targets is an email bomb.
+    day = db.execute(
+        select(func.count(ConsentRequest.id)).where(
+            ConsentRequest.requester_user_id == requester_id,
+            ConsentRequest.created_at >= now - timedelta(days=1),
+        )
+    ).scalar_one()
+    if day >= MAX_REQUESTS_PER_DAY:
+        raise ConsentFlowError(
+            "rate_limited",
+            "You've sent the maximum number of consent requests for today.",
+        )
+
+
 def request_consent(
     db: Session,
     *,
@@ -108,6 +161,7 @@ def request_consent(
             "cannot_request_self",
             "That's your own address — scan yourself directly; no consent needed.",
         )
+    _enforce_request_limits(db, requester_id=requester.id, email_norm=email_norm, now=now)
 
     raw = secrets.token_urlsafe(32)
     req = ConsentRequest(
