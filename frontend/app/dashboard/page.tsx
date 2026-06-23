@@ -6,6 +6,7 @@ import { api, ApiError, User } from "@/lib/api";
 import IdentifierManager from "@/components/IdentifierManager";
 import TosGate from "@/components/TosGate";
 import ScanPanel from "@/components/ScanPanel";
+import ConsentManager from "@/components/ConsentManager";
 import DataRights from "@/components/DataRights";
 import GettingStarted from "@/components/GettingStarted";
 import ScanPreview from "@/components/ScanPreview";
@@ -79,6 +80,7 @@ export default function DashboardPage() {
       />
       <ScanPreview refreshKey={previewKey} />
       <ScanPanel />
+      <ConsentManager />
       <DataRights />
       <p style={{ marginTop: "1.5rem" }}>
         <button

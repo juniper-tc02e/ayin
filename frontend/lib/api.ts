@@ -228,6 +228,40 @@ export type ScanPreview = {
   eta_seconds: number;
 };
 
+// ── Consent (T1: authorized third-party scans) ──────────────────────
+
+/** A live grant the current user holds as a requester. */
+export type ConsentGrant = {
+  id: string;
+  subject_id: string;
+  subject_email: string | null;
+  purpose: string;
+  scope: string;
+  granted_at: string;
+  expires_at: string;
+};
+
+/** A pending ask the requester just created. */
+export type ConsentRequestResult = {
+  id: string;
+  subject_email: string;
+  purpose: string;
+  status: string;
+  ttl_days: number;
+  expires_at: string;
+  created_at: string;
+};
+
+/** What the subject sees on the consent page, reached via their emailed link. */
+export type ConsentAsk = {
+  requester_email: string;
+  subject_email: string;
+  purpose: string;
+  usernames: string[];
+  ttl_days: number;
+  expires_at: string;
+};
+
 /** Fire-and-forget funnel event (failures are silently ignored). */
 export function trackClient(name: string, scanId?: string, properties?: Record<string, unknown>) {
   api("/analytics/events", {
