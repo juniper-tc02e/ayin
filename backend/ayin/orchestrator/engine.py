@@ -144,6 +144,24 @@ def run_gates(db: Session, scan: Scan, settings: Settings) -> GateResult:
         # FR-TS-3: an excluded identity is never scanned.
         return GateResult(GateDecision.REFUSE, "subject_excluded")
 
+    # Consent gate (T1+, PRD §20.5): scanning a subject who is NOT the
+    # requester's own self is REFUSED unless that subject granted this requester
+    # a verified, current consent. Self-scan (T0) is unaffected. Checked AFTER
+    # exclusion (exclude-me always wins) and BEFORE anything runs — the
+    # structural enforcement that Ayin never scans a non-consenting person.
+    if subject.owner_user_id != scan.requester_user_id:
+        from ayin.consent.store import active_consent  # noqa: PLC0415
+
+        if active_consent(
+            db, subject_id=subject.id, requester_user_id=scan.requester_user_id
+        ) is None:
+            return GateResult(
+                GateDecision.REFUSE,
+                "no_consent: scanning someone other than yourself requires their "
+                "verified, current authorization — Ayin never scans a "
+                "non-consenting person.",
+            )
+
     identifiers = eligible_seed_identifiers(db, scan.subject_id)
     if not has_verified_anchor(identifiers):
         # Distinguish "never verified" from "this identity excluded itself".
