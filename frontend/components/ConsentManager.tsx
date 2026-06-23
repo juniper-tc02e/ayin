@@ -14,6 +14,7 @@ import { api, ApiError, ConsentGrant, ConsentRequestResult, Scan } from "@/lib/a
  */
 export default function ConsentManager() {
   const router = useRouter();
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   const [grants, setGrants] = useState<ConsentGrant[]>([]);
   const [email, setEmail] = useState("");
   const [usernames, setUsernames] = useState("");
@@ -26,7 +27,18 @@ export default function ConsentManager() {
   const refresh = useCallback(() => {
     api<ConsentGrant[]>("/consent/grants").then(setGrants).catch(() => {});
   }, []);
-  useEffect(refresh, [refresh]);
+
+  // T1 is gated server-side; only render the surface when it's enabled.
+  useEffect(() => {
+    api<{ consent_t1_enabled: boolean }>("/config")
+      .then((c) => {
+        setEnabled(c.consent_t1_enabled);
+        if (c.consent_t1_enabled) refresh();
+      })
+      .catch(() => setEnabled(false));
+  }, [refresh]);
+
+  if (!enabled) return null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

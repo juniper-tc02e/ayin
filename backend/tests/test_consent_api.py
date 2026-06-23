@@ -24,12 +24,31 @@ def sender():
     return RecordingSender()
 
 
+def _t1_enabled_settings():
+    # T1 is flag-gated and OFF by default; enable it for the endpoint tests.
+    return get_settings().model_copy(update={"consent_t1_enabled": True})
+
+
 @pytest.fixture()
 def client(sender):
     app = create_app(get_settings())
     app.dependency_overrides[get_email_sender] = lambda: sender
+    app.dependency_overrides[get_settings] = _t1_enabled_settings
     with TestClient(app) as c:
         yield c
+
+
+def test_t1_surface_hidden_when_flag_off(sender):
+    # Default settings (flag off): the whole /consent surface 404s and /config
+    # advertises it as disabled.
+    app = create_app(get_settings())
+    app.dependency_overrides[get_email_sender] = lambda: sender
+    with TestClient(app) as c:
+        assert c.get("/config").json()["consent_t1_enabled"] is False
+        _signup(c, f"req-{uuid.uuid4().hex[:8]}@example.org")
+        r = c.post("/consent/requests", json={"subject_email": "x@example.org", "purpose": "p"})
+        assert r.status_code == 404
+        assert c.get("/consent/grants").status_code == 404
 
 
 def _signup(client, email):

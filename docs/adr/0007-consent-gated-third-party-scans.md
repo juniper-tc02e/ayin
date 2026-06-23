@@ -1,6 +1,7 @@
 # ADR 0007 — Consent-gated third-party scans (T1): the subject is the only one who can authorize
 
-- **Status:** Proposed
+- **Status:** Accepted — gate deployed always-on; T1 user-facing **surface flag-gated OFF**
+  in prod (`consent_t1_enabled`) pending the pre-enablement follow-ups below.
 - **Date:** 2026-06-23
 - **Supersedes/relates:** extends the gate/orchestrator model ([`ADR-0001`](0001-architecture-and-mvp-scope.md));
   the consented footprint runs the same engine as [`ADR-0006`](0006-username-footprint-connector.md).
@@ -77,20 +78,50 @@ created by the subject's own verified action.** Concretely:
 
 - A whole tier (T1) becomes possible without weakening T0: self-scan is entirely
   unaffected (gate short-circuits when requester == owner).
-- **Known gap (follow-up):** a login-less subject can't yet *revoke* through an
-  authenticated session. Mitigations in place: grants are always time-bound, and
-  the requester can revoke (only ever reducing access). A tokened email
-  revoke-link for login-less subjects is the next increment.
-- **Not built / out of scope here:** requester identity-proofing beyond an
-  Ayin account (e.g. SingPass/org verification), per-grant rate limiting beyond
-  the existing per-requester scan limits, and exposing this on the live judged
-  demo (it stays self-scan-only unless the owner opts in).
+- **The gate ships and deploys live always-on** — it can only ever *refuse* more
+  scans, so it is a pure safety improvement to the running site. The **T1
+  user-facing surface** (request/accept/revoke endpoints + UI, and the
+  `POST /scans {subject_id}` path) is gated behind `consent_t1_enabled`, which is
+  **OFF in production**. With it off, `/consent/*` 404s and the UI hides itself;
+  this does not rely on prod's (currently inert) SMTP for safety.
+
+### Pre-enablement follow-ups (from the 2026-06-23 adversarial audit)
+
+An adversarial pre-deploy audit (a workflow of finders + a completeness critic)
+found that the feature shipped the *authorize* half without a complete, safe
+*deliver / revoke / screen* half. These MUST land and re-pass the audit before
+`consent_t1_enabled` is turned on in prod:
+
+1. **Subject-side revocation (HIGH).** A login-less subject can't authenticate,
+   so today only the owner-account or the requester can revoke — which is not
+   subject control. Ship a tokened one-click email revoke link (in the ask and
+   the on-accept confirmation).
+2. **Request-time exclusion/minor screening (HIGH).** `request_consent` must
+   check the target against the exclusion + protection lists and silently no-op
+   (never reveal protection status); `accept_consent` must run the minor
+   heuristics and refuse to mint, not just refuse the eventual scan.
+3. **Don't mutate a pre-existing real account via the accept side-door (MED).**
+   Seed handles as *unconfirmed* / require the subject to confirm per-handle;
+   never auto-VERIFY an existing user's email through a third-party-initiated flow.
+4. **One effective grant + honest revoke (MED).** Revoke ALL active grants for
+   `(subject, requester)`, always audit the revoke attempt, and revoke even an
+   already-expired row.
+5. **T1 result-delivery model (MED).** Default decision: **results belong to the
+   subject; the requester is never shown another person's findings** (only a
+   "scan completed" confirmation). The requester read path stays closed.
+6. **Throttle + anti-phishing on the public token endpoints (MED/LOW).** Per-IP
+   limits on view/accept/decline; strip URLs from `purpose`; anti-phishing notice
+   + report-abuse affordance on the consent page.
+
+- **Still out of scope:** requester identity-proofing beyond an Ayin account
+  (e.g. SingPass/org verification).
 
 ## Verification
 
 `backend/tests/test_consent_gate.py` (8) — gate verdict for self / no-consent /
 valid / revoked / expired / non-adult / excluded-wins / requester-specific.
-`test_consent_flow.py` (8) — request→accept→revoke flips the gate; bright-line
-refusals; single-use; existing-user attach. `test_consent_api.py` (5) — the HTTP
-flow end-to-end + the scan endpoint's 403 on a stranger. Full suite 363 passed;
-frontend typecheck + build green.
+`test_consent_flow.py` (11) — request→accept→revoke flips the gate; bright-line
+refusals; single-use; existing-user attach; request rate-limit/dedupe caps.
+`test_consent_api.py` (6) — the HTTP flow end-to-end + the scan endpoint's 403 on
+a stranger + the flag-off surface 404. Full suite 367 passed; frontend typecheck
++ build green.

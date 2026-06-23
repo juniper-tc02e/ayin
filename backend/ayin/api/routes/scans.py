@@ -127,6 +127,10 @@ def start_scan(
     # nothing on its own.
     target: Subject | None = None
     if body is not None and body.subject_id is not None:
+        if not settings.consent_t1_enabled:
+            # T1 surface disabled — the consent gate would refuse anyway (no
+            # grants can exist), but keep the path fully dormant.
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found.")
         target = db.get(Subject, body.subject_id)
         if target is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Subject not found.")

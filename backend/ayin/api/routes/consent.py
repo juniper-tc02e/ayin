@@ -40,7 +40,19 @@ from ayin.models import ConsentGrant, Subject, User
 from ayin.services.email import EmailSender
 
 log = logging.getLogger("ayin.consent")
-router = APIRouter(prefix="/consent", tags=["consent"])
+
+
+def require_t1_enabled(settings: SettingsDep) -> None:
+    """Hide the entire T1 surface unless explicitly enabled. 404 (not 403) so a
+    disabled deployment is indistinguishable from one that never had the feature
+    — the consent GATE in the orchestrator stays on regardless."""
+    if not settings.consent_t1_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found.")
+
+
+router = APIRouter(
+    prefix="/consent", tags=["consent"], dependencies=[Depends(require_t1_enabled)]
+)
 
 # Flow error code → HTTP status.
 _FLOW_HTTP = {

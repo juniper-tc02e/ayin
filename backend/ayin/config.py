@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     # ── Private beta (M5-1): require an invite code at signup ─
     beta_invite_required: bool = False
 
+    # ── Consent-gated third-party scans (T1, PRD §20.5; ADR-0007) ─
+    # The orchestrator consent GATE is always on (it only ever refuses). This
+    # flag gates the user-facing T1 SURFACE (consent request/accept/revoke
+    # endpoints + UI). Stays OFF until subject-side revocation, a defined result-
+    # delivery model, and request/accept-time exclusion+minor screening ship and
+    # pass an adversarial audit (the authorize-without-deliver half must not be
+    # exposed on a live site — ADR-0007 follow-ups).
+    consent_t1_enabled: bool = False
+
     # ── Demo deployment (hackathon judge flow) ───────────────
     # When true: the synthetic FakeConnector is enabled even in production
     # (it carries counsel sign-off — nothing external), and scripts/seed_demo
