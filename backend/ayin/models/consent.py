@@ -14,7 +14,7 @@ scoped, adult-attested, and every use is audited.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, String, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ayin.models.base import Base, CreatedAtMixin, UuidPkMixin
@@ -63,3 +63,55 @@ class ConsentGrant(Base, UuidPkMixin, CreatedAtMixin):
             and self.adult_attested
             and self.granted_at <= now < self.expires_at
         )
+
+
+# Request statuses.
+CONSENT_PENDING = "pending"
+CONSENT_GRANTED = "granted"
+CONSENT_DECLINED = "declined"
+CONSENT_EXPIRED = "expired"
+
+
+class ConsentRequest(Base, UuidPkMixin, CreatedAtMixin):
+    """A requester's pending *ask* for a subject's consent — NOT authorization.
+
+    The requester names the subject by email and proposes a bounded purpose +
+    handles to scan. A link carrying a single-use token is sent to that email;
+    possession of the link proves the subject controls the address (same basis
+    as identifier email-verification). The subject reviews the ask and either
+    accepts — which mints a :class:`ConsentGrant` via the subject's own action —
+    or declines. This row holds the ask only; it grants nothing on its own, and
+    the orchestrator gate never consults it.
+    """
+
+    __tablename__ = "consent_requests"
+    __table_args__ = (
+        Index("ix_consent_req_token", "token_hash"),
+        Index("ix_consent_req_subject_email", "subject_email"),
+    )
+
+    # Who is asking.
+    requester_user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # The subject's own email — the channel the ask is delivered to (normalized).
+    subject_email: Mapped[str] = mapped_column(String(320), nullable=False)
+    # Handles the requester proposes to scan, newline-joined (the subject is
+    # confirming these are theirs by accepting). Bounded at accept time.
+    scope_usernames: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Bounded purpose the subject is being asked to authorize.
+    purpose: Mapped[str] = mapped_column(String(200), nullable=False)
+    # Window the resulting grant should last, in days.
+    ttl_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    # pending | granted | declined | expired.
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default=CONSENT_PENDING)
+    # sha256 of the single-use link token (raw token is emailed, never stored).
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # When the *ask* itself expires (distinct from the grant's own window).
+    expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    # When the subject accepted/declined.
+    responded_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # The grant minted on accept (audit linkage).
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("consent_grants.id", ondelete="SET NULL"), nullable=True
+    )

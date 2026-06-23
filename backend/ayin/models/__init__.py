@@ -5,7 +5,7 @@ from ayin.models.abuse import AbuseSignal
 from ayin.models.analytics import AnalyticsEvent
 from ayin.models.audit import GENESIS_HASH, AuditRecord
 from ayin.models.base import Base
-from ayin.models.consent import ConsentGrant
+from ayin.models.consent import ConsentGrant, ConsentRequest
 from ayin.models.exclusion import Exclusion
 from ayin.models.finding import Finding, RemediationTask, Score
 from ayin.models.intent import IntentKind, IntentSignal
@@ -35,6 +35,7 @@ __all__ = [
     "AbuseSignal",
     "AnalyticsEvent",
     "ConsentGrant",
+    "ConsentRequest",
     "RateLimitPolicy",
     "ProtectionEntry",
     "Exclusion",
