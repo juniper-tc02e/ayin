@@ -37,7 +37,9 @@ from ayin.models.consent import (
 from ayin.models.enums import IdentifierKind, VerificationState
 from ayin.models.subject import Identifier, Subject
 from ayin.models.user import User
+from ayin.safety.abuse import screen_subject_identifiers
 from ayin.safety.audit import record_event, user_actor
+from ayin.safety.exclusion import split_excluded
 from ayin.services.normalize import IdentifierValidationError, normalize_identifier
 
 REQUEST_TTL_DAYS = 7  # how long the *ask* (the link) stays valid
@@ -79,6 +81,33 @@ def _clean_usernames(raw_block: str) -> list[str]:
         if len(out) >= MAX_USERNAMES:
             break
     return out
+
+
+def _screen_subject(
+    db: Session, *, email_norm: str, usernames: list[str], now: datetime
+) -> str | None:
+    """Defense-in-depth screen run BEFORE we email or scan a third party: is the
+    target excluded (opted out of Ayin), on the victim-protection list, or
+    showing minor signals? Returns a machine reason or None. Builds transient
+    Identifiers from the subject email + proposed handles; reuses the exact
+    scan-gate safety logic so the bright lines hold at consent time too, not
+    only at scan time."""
+    idents = [Identifier(
+        kind=IdentifierKind.EMAIL, value_raw=email_norm, value_normalized=email_norm,
+    )]
+    for handle in _clean_usernames("\n".join(usernames or [])):
+        try:
+            vr, vn = normalize_identifier(IdentifierKind.USERNAME, handle)
+        except IdentifierValidationError:
+            continue
+        idents.append(Identifier(kind=IdentifierKind.USERNAME, value_raw=vr, value_normalized=vn))
+    reason = screen_subject_identifiers(db, idents, now=now)
+    if reason:
+        return reason
+    _, excluded = split_excluded(db, idents)
+    if excluded:
+        return "excluded"
+    return None
 
 
 # ── 1. Requester asks ────────────────────────────────────────────────
@@ -141,9 +170,14 @@ def request_consent(
     purpose: str,
     ttl_days: int = 30,
     now: datetime | None = None,
-) -> tuple[ConsentRequest, str]:
+) -> tuple[ConsentRequest | None, str | None]:
     """Create a pending ask and return ``(request, raw_token)``. The caller
     delivers the token via a link to ``subject_email`` (the subject's channel).
+
+    Returns ``(None, None)`` when the target is screened out (excluded /
+    protected / minor): the caller must treat that as an indistinguishable
+    success — no row, no email, no reason revealed — so the endpoint can't be
+    used to probe protection-list membership.
 
     Nothing is authorized by this call — only the subject's later acceptance is.
     """
@@ -162,6 +196,16 @@ def request_consent(
             "That's your own address — scan yourself directly; no consent needed.",
         )
     _enforce_request_limits(db, requester_id=requester.id, email_norm=email_norm, now=now)
+
+    if _screen_subject(db, email_norm=email_norm, usernames=usernames, now=now):
+        # Excluded / protected / minor target. Silent no-op: no row, no email,
+        # no reason. Audit the attempt (a requester probing protected people is
+        # a T&S signal) with only a generic class — never the matched list.
+        record_event(
+            db, actor=user_actor(requester.id), event_type="consent.request_screened",
+            detail={"subject_email": email_norm},
+        )
+        return None, None
 
     raw = secrets.token_urlsafe(32)
     req = ConsentRequest(
@@ -297,6 +341,24 @@ def accept_consent(
         raise ConsentFlowError(
             "adult_attestation_required",
             "You must confirm you are 18 or older to authorize a scan.",
+        )
+
+    # Defense-in-depth: re-screen at accept (the subject is acting now). Refuse
+    # to mint — and to verify the email / seed handles — if the subject is
+    # excluded, protected, or shows minor signals. The scan gate would refuse
+    # anyway, but a grant must never be recorded for a protected person.
+    screen = _screen_subject(
+        db, email_norm=req.subject_email,
+        usernames=(req.scope_usernames or "").splitlines(), now=now,
+    )
+    if screen:
+        if screen.startswith("minor"):
+            raise ConsentFlowError(
+                "minor_suspected",
+                "This request can't be completed — Ayin does not scan minors.",
+            )
+        raise ConsentFlowError(
+            "screening_failed", "This request can't be completed."
         )
 
     user, subject, _created = _subject_for(db, email_norm=req.subject_email)

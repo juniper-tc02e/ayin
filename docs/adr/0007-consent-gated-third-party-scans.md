@@ -96,10 +96,14 @@ found that the feature shipped the *authorize* half without a complete, safe
    so today only the owner-account or the requester can revoke — which is not
    subject control. Ship a tokened one-click email revoke link (in the ask and
    the on-accept confirmation).
-2. **Request-time exclusion/minor screening (HIGH).** `request_consent` must
-   check the target against the exclusion + protection lists and silently no-op
-   (never reveal protection status); `accept_consent` must run the minor
-   heuristics and refuse to mint, not just refuse the eventual scan.
+2. **Request-time exclusion/minor screening (HIGH). — DONE.** `request_consent`
+   now screens the target (email + proposed handles) against the exclusion +
+   victim-protection lists and the minor heuristics, and **silently no-ops** on a
+   match (no row, no email, no reason — an indistinguishable "pending" response,
+   audited as `consent.request_screened` with only a generic class).
+   `accept_consent` re-screens and **refuses to mint** (and to verify the email /
+   seed handles) on a match. Reuses the exact scan-gate safety logic
+   (`safety.abuse.screen_subject_identifiers` + `safety.exclusion.split_excluded`).
 3. **Don't mutate a pre-existing real account via the accept side-door (MED).**
    Seed handles as *unconfirmed* / require the subject to confirm per-handle;
    never auto-VERIFY an existing user's email through a third-party-initiated flow.

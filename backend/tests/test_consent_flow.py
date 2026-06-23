@@ -14,11 +14,12 @@ import pytest
 from ayin.config import get_settings
 from ayin.consent import flow
 from ayin.consent.flow import ConsentFlowError
-from ayin.models import Identifier, Scan, Subject, User
+from ayin.models import Exclusion, Identifier, ProtectionEntry, Scan, Subject, User
 from ayin.models.consent import CONSENT_GRANTED, ConsentGrant
 from ayin.models.enums import IdentifierKind, VerificationState
 from ayin.orchestrator import engine
 from ayin.orchestrator.engine import GateDecision
+from ayin.safety.hashing import identifier_hash
 
 NOW = datetime(2026, 6, 23, tzinfo=timezone.utc)
 
@@ -209,6 +210,62 @@ def test_per_requester_daily_cap_blocks_email_bomb(db):
             db, requester=r, subject_email=_subject_email(), usernames=[], purpose="x", now=NOW
         )
     assert ei.value.code == "rate_limited"
+
+
+def _exclude_email(db, email):
+    db.add(Exclusion(
+        kind="email", value_hash=identifier_hash(IdentifierKind.EMAIL, email), confirmed_at=NOW,
+    ))
+    db.commit()
+
+
+def _protect_email(db, email):
+    db.add(ProtectionEntry(
+        kind="email", value_hash=identifier_hash(IdentifierKind.EMAIL, email),
+    ))
+    db.commit()
+
+
+def test_request_to_excluded_subject_is_silently_suppressed(db):
+    r = _requester(db)
+    email = _subject_email()
+    _exclude_email(db, email)
+    req, raw = flow.request_consent(
+        db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW
+    )
+    assert req is None and raw is None  # no row, no email, no reason revealed
+
+
+def test_request_to_protected_subject_is_silently_suppressed(db):
+    r = _requester(db)
+    email = _subject_email()
+    _protect_email(db, email)
+    req, raw = flow.request_consent(
+        db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW
+    )
+    assert req is None and raw is None
+
+
+def test_request_with_minor_handle_is_suppressed(db):
+    r = _requester(db)
+    req, raw = flow.request_consent(
+        db, requester=r, subject_email=_subject_email(), usernames=["skater2015"],
+        purpose="x", now=NOW,
+    )
+    assert req is None and raw is None  # birth-year handle → minor signal
+
+
+def test_accept_refuses_when_subject_excluded_after_request(db):
+    r = _requester(db)
+    email = _subject_email()
+    _req, raw = flow.request_consent(
+        db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW
+    )
+    db.commit()
+    _exclude_email(db, email)  # subject opts out between the ask and accepting
+    with pytest.raises(ConsentFlowError) as ei:
+        flow.accept_consent(db, raw_token=raw, adult_attested=True, now=NOW)
+    assert ei.value.code == "screening_failed"  # grant never minted
 
 
 def test_accept_attaches_to_existing_user_without_creating_one(db, settings):

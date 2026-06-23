@@ -19,6 +19,7 @@ a live grant"; these endpoints only create/withdraw that grant via the subject.
 
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -64,6 +65,8 @@ _FLOW_HTTP = {
     "cannot_consent_to_self": status.HTTP_409_CONFLICT,
     "already_pending": status.HTTP_409_CONFLICT,
     "rate_limited": status.HTTP_429_TOO_MANY_REQUESTS,
+    "minor_suspected": status.HTTP_422_UNPROCESSABLE_ENTITY,
+    "screening_failed": status.HTTP_409_CONFLICT,
 }
 
 
@@ -102,6 +105,22 @@ def create_request(
         )
     except ConsentFlowError as exc:
         raise _http_from_flow(exc) from None
+
+    # Screened out (excluded / protected / minor): the flow created nothing and
+    # told us nothing. Return an indistinguishable "pending" so the endpoint
+    # can't be used to probe who is protected. No email is sent.
+    if req is None:
+        db.commit()  # persist the screened-attempt audit row
+        now = datetime.now(timezone.utc)
+        return ConsentRequestOut(
+            id=uuid.uuid4(),
+            subject_email=str(body.subject_email).strip().lower(),
+            purpose=body.purpose[:200],
+            status="pending",
+            ttl_days=body.ttl_days,
+            expires_at=now + timedelta(days=flow.REQUEST_TTL_DAYS),
+            created_at=now,
+        )
 
     # Deliver the ask to the SUBJECT's own channel. A delivery failure must not
     # 500 the request (the row exists; resend can follow) — mirror the

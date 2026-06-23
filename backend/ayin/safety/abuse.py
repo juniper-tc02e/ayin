@@ -76,6 +76,23 @@ def _protection_match(db: Session, identifiers: list[Identifier]) -> ProtectionE
     ).scalars().first()
 
 
+def screen_subject_identifiers(
+    db: Session, identifiers: list[Identifier], *, now: datetime | None = None
+) -> str | None:
+    """Reusable minor/protection pre-screen for flows OUTSIDE the scan gate
+    (e.g. consent request/accept). Returns a machine reason ('minor:…' or
+    'protected') or None. Read-only: writes no signals and does not consult the
+    exclusion list (callers add that). Accepts transient (unsaved) Identifiers —
+    only ``.kind`` / ``.value_normalized`` are read."""
+    now = now or datetime.now(timezone.utc)
+    minor = _minor_signals(identifiers, now)
+    if minor:
+        return f"minor:{minor}"
+    if _protection_match(db, identifiers) is not None:
+        return "protected"
+    return None
+
+
 def _anomaly_state(db: Session, scan: Scan) -> tuple[int, int]:
     """(block_count, warn_count) of open signals for this requester, 24h."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
