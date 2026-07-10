@@ -56,5 +56,12 @@ class Identifier(Base, UuidPkMixin, CreatedAtMixin):
     )
     verified_at: Mapped[datetime | None] = mapped_column(nullable=True)
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    # Per-requester consent scoping (T1): NULL = the subject's own seed (self-scan,
+    # T0). Non-NULL = a handle the subject confirmed FOR THIS requester via a
+    # consent grant — so a third-party scan only fans out to what that specific
+    # requester was authorized to know, never another requester's handles.
+    consent_requester_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
 
     subject: Mapped[Subject] = relationship(back_populates="identifiers")

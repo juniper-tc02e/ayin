@@ -56,7 +56,8 @@ services:
              cd /app &&
              alembic upgrade head &&
              python scripts/seed_demo.py &&
-             uvicorn ayin.api.main:app --host 0.0.0.0 --port 8000 --workers 2"
+             uvicorn ayin.api.main:app --host 0.0.0.0 --port 8000 --workers 2
+             --proxy-headers --forwarded-allow-ips='*'"
     env_file: .env
     environment:
       DATABASE_URL: postgresql://ayin:${POSTGRES_PASSWORD}@postgres:5432/ayin

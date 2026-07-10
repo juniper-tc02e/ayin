@@ -1,8 +1,9 @@
 """Scan job record.
 
-Load-bearing constraints (CLAUDE.md #1): tier and purpose are DB-CHECKed to
-the self-scan values. Widening them is a migration + ADR + counsel review,
-not a code change.
+Load-bearing constraints (CLAUDE.md #1): tier and purpose are DB-CHECKed and
+TIED — t0 ⇔ self, t1 ⇔ a non-self (consented) purpose (ADR-0007/0008). A scan
+can never be recorded as self while targeting someone else. Widening beyond
+these tiers is a migration + ADR + counsel review, not a code change.
 """
 
 import uuid
@@ -20,9 +21,13 @@ from ayin.models.types import str_enum
 class Scan(Base, UuidPkMixin, CreatedAtMixin):
     __tablename__ = "scans"
     __table_args__ = (
-        # MVP is T0 self-scan only — enforced in the schema itself.
-        CheckConstraint("tier = 't0'", name="tier_t0_only"),
-        CheckConstraint("purpose = 'self'", name="purpose_self_only"),
+        # tier ⇔ purpose, enforced in the schema itself: a t0 scan is always
+        # 'self'; a t1 (consented) scan is always a non-self purpose. The set of
+        # allowed tier VALUES is CHECKed separately by str_enum(ScanTier).
+        CheckConstraint(
+            "(tier = 't0' AND purpose = 'self') OR (tier = 't1' AND purpose <> 'self')",
+            name="tier_purpose",
+        ),
         Index("ix_scans_requester_created", "requester_user_id", "created_at"),
     )
 

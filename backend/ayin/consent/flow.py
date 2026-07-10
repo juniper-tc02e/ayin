@@ -314,7 +314,9 @@ def _ensure_email_verified(db: Session, subject: Subject, email_norm: str, now: 
     db.flush()
 
 
-def _seed_usernames(db: Session, subject: Subject, raw_block: str) -> None:
+def _seed_usernames(
+    db: Session, subject: Subject, raw_block: str, *, requester_id: uuid.UUID
+) -> None:
     for handle in _clean_usernames(raw_block):
         try:
             value_raw, value_norm = normalize_identifier(IdentifierKind.USERNAME, handle)
@@ -328,9 +330,12 @@ def _seed_usernames(db: Session, subject: Subject, raw_block: str) -> None:
             )
         ).scalar_one_or_none()
         if exists is None:
+            # Tag the handle with the requester it was confirmed for, so only
+            # that requester's scans can use it (per-grant scoping).
             db.add(Identifier(
                 subject_id=subject.id, kind=IdentifierKind.USERNAME,
                 value_raw=value_raw, value_normalized=value_norm,
+                consent_requester_id=requester_id,
             ))
     db.flush()
 
@@ -401,7 +406,7 @@ def accept_consent(
     # verified anchor + handles, which only they control.
     if user.password_hash is None:
         _ensure_email_verified(db, subject, req.subject_email, now)
-        _seed_usernames(db, subject, req.scope_usernames)
+        _seed_usernames(db, subject, req.scope_usernames, requester_id=req.requester_user_id)
 
     grant = record_grant(
         db,

@@ -130,6 +130,36 @@ the flag); a re-audit is the last gate before flipping it on.**
 - **Still out of scope:** requester identity-proofing beyond an Ayin account
   (e.g. SingPass/org verification).
 
+### Re-audit remediation (2026-06-23)
+
+A second adversarial audit of the "done" blockers found the surface still wasn't
+enable-ready: 1 critical + 6 high. All were remediated (flag still OFF):
+
+- **Screening oracle (CRIT) — fixed.** The old silent-no-op was distinguishable
+  (response-code, timing, unsanitized-purpose echo). Now request creation ALWAYS
+  writes a rate-limit-counting row with a `screened` flag (migration 0019), the
+  email is a `BackgroundTask` (timing-independent) sent only for non-screened
+  targets, and the response is the real row's sanitized value → indistinguishable.
+- **Revoke gated by the flag (HIGH) — fixed.** Only request *creation* is behind
+  `consent_t1_enabled`; view/accept/decline/revoke are always reachable.
+- **`POST /scans` leaked the subject's results (HIGH) — fixed.** Redacted to a
+  bare confirmation when the target isn't the requester's own subject.
+- **Scan tier mislabelled / identifier scope subject-wide (HIGH ×2) — fixed in
+  [`ADR-0008`](0008-t1-data-model-tier-and-identifier-scope.md).**
+- **Throttle neutralized behind the proxy (HIGH) — fixed.** uvicorn now runs with
+  `--proxy-headers` so the limiter keys off the real client IP (each IP its own
+  bucket; an attacker can't 429 everyone). The in-memory limiter is per-worker
+  (≤2× budget) — a shared Redis store is the noted upgrade.
+- Mediums/lows: URL/shortener strip widened; revoke audit attribution +
+  always-audit; revoke-token bounded to its grant's life; no PII in delivery logs.
+
+**Documented residuals (not blocking; low exploitability / need a product call),
+to revisit before scale:** grant `scope="footprint"` is recorded but connector
+selection isn't yet scope-limited; a login-less consent subject can't later claim
+that email for a real account; the per-target harassment cap is per-account (prod
+mitigates via invite-only signup); `POST /scans` does no route-layer relationship
+check (the orchestrator consent gate is the real enforcement).
+
 ## Verification
 
 `backend/tests/test_consent_gate.py` (8) — gate verdicts. `test_consent_flow.py`

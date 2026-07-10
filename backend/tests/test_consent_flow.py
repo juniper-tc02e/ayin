@@ -394,6 +394,48 @@ def test_revoke_by_unknown_token_is_false(db):
     assert flow.revoke_by_token(db, raw_token="not-a-real-token-xxxxx") is False
 
 
+def test_third_party_scan_row_is_tagged_t1_not_self(db, settings):
+    # A consented third-party scan must be recorded as tier=t1 / non-self purpose,
+    # never mislabelled as an ordinary self-scan (the DB CHECK ties them).
+    from ayin.models.enums import ScanTier
+
+    r = _requester(db)
+    _su, subject = _subject_record(db)
+    scan = engine.create_scan(db, requester=r, settings=settings, subject=subject)
+    db.commit()
+    assert scan.tier == ScanTier.T1_CONSENTED
+    assert scan.purpose != "self"
+
+
+def test_third_party_scan_only_sees_that_requesters_handles(db):
+    # Per-grant identifier scoping: the same subject grants requester A (handle
+    # 'alice_a') and requester B (handle 'bob_b'). A's scan must NOT see 'bob_b'.
+    from ayin.orchestrator.engine import eligible_seed_identifiers
+
+    a = _requester(db)
+    b = _requester(db)
+    email = _subject_email()
+    _ra, raw_a = flow.request_consent(
+        db, requester=a, subject_email=email, usernames=["alice_a"], purpose="x", now=NOW
+    )
+    db.commit()
+    grant_a = flow.accept_consent(db, raw_token=raw_a, adult_attested=True, now=NOW)
+    db.commit()
+    subject_id = grant_a.subject_id
+
+    _rb, raw_b = flow.request_consent(
+        db, requester=b, subject_email=email, usernames=["bob_b"], purpose="y", now=NOW
+    )
+    db.commit()
+    flow.accept_consent(db, raw_token=raw_b, adult_attested=True, now=NOW)
+    db.commit()
+
+    a_ids = {i.value_normalized for i in eligible_seed_identifiers(db, subject_id, requester_user_id=a.id)}
+    b_ids = {i.value_normalized for i in eligible_seed_identifiers(db, subject_id, requester_user_id=b.id)}
+    assert "alice_a" in a_ids and "bob_b" not in a_ids and email in a_ids
+    assert "bob_b" in b_ids and "alice_a" not in b_ids and email in b_ids
+
+
 def test_purpose_urls_are_stripped(db):
     # A phishing link in the purpose must never reach the subject's inbox / page.
     r = _requester(db)

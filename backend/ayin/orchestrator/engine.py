@@ -37,6 +37,7 @@ from ayin.models.enums import (
     IdentifierKind,
     JobStatus,
     ScanStatus,
+    ScanTier,
     VerificationState,
 )
 from ayin.safety import limits
@@ -68,11 +69,20 @@ class GateResult:
 # ── Seed selection ───────────────────────────────────────────────────
 
 
-def eligible_seed_identifiers(db: Session, subject_id: uuid.UUID) -> list[Identifier]:
+def eligible_seed_identifiers(
+    db: Session, subject_id: uuid.UUID, *, requester_user_id: uuid.UUID | None = None
+) -> list[Identifier]:
     """Seeds allowed to fan out: verified challengeable identifiers, plus
     auxiliary kinds (which cannot be challenge-verified). An UNVERIFIED
     email/phone is excluded — control not yet proven (FR-AUTH-1).
-    Identifiers on the public exclusion list NEVER fan out (FR-TS-3)."""
+    Identifiers on the public exclusion list NEVER fan out (FR-TS-3).
+
+    ``requester_user_id`` enables per-requester consent scoping (T1): when the
+    requester is NOT the subject's owner (a third-party consented scan), the set
+    is restricted to identifiers the subject confirmed FOR THAT requester
+    (``consent_requester_id``) plus the subject's verified anchor — never handles
+    another requester introduced. A self-scan (owner == requester, or None) is
+    unchanged (T0)."""
     from ayin.safety.exclusion import split_excluded  # noqa: PLC0415
 
     rows = db.execute(
@@ -85,6 +95,21 @@ def eligible_seed_identifiers(db: Session, subject_id: uuid.UUID) -> list[Identi
                 out.append(ident)
         else:
             out.append(ident)
+
+    if requester_user_id is not None:
+        owner = db.execute(
+            select(Subject.owner_user_id).where(Subject.id == subject_id)
+        ).scalar_one_or_none()
+        if owner is not None and owner != requester_user_id:
+            out = [
+                i for i in out
+                if i.consent_requester_id == requester_user_id
+                or (
+                    i.kind in CHALLENGEABLE_KINDS
+                    and i.verification_state == VerificationState.VERIFIED
+                )
+            ]
+
     allowed, excluded = split_excluded(db, out)
     if excluded:
         log.info("seed selection: %d identifier(s) suppressed by exclusion list", len(excluded))
@@ -162,7 +187,9 @@ def run_gates(db: Session, scan: Scan, settings: Settings) -> GateResult:
                 "non-consenting person.",
             )
 
-    identifiers = eligible_seed_identifiers(db, scan.subject_id)
+    identifiers = eligible_seed_identifiers(
+        db, scan.subject_id, requester_user_id=scan.requester_user_id
+    )
     if not has_verified_anchor(identifiers):
         # Distinguish "never verified" from "this identity excluded itself".
         # Exclusion purges the seed rows, so check (a) any surviving seed
@@ -244,7 +271,15 @@ def create_scan(
         subject = db.execute(
             select(Subject).where(Subject.owner_user_id == requester.id)
         ).scalar_one()
-    scan = Scan(requester_user_id=requester.id, subject_id=subject.id)
+    # Tag the tier/purpose truthfully so the DB row can't record a third-party
+    # scan as an ordinary self-scan (the CHECK ties t0⇔self, t1⇔non-self).
+    is_self = subject.owner_user_id == requester.id
+    scan = Scan(
+        requester_user_id=requester.id,
+        subject_id=subject.id,
+        tier=ScanTier.T0_SELF if is_self else ScanTier.T1_CONSENTED,
+        purpose="self" if is_self else "consented",
+    )
     db.add(scan)
     db.flush()
     record_scan_event(
@@ -292,7 +327,9 @@ def gate_scan(db: Session, scan: Scan, settings: Settings) -> GateResult:
 def dispatch_scan(db: Session, scan: Scan, registry: ConnectorRegistry) -> list[ConnectorJob]:
     """Fan out: one ConnectorJob per enabled connector that supports ≥1 seed
     kind. gated → running. Commits."""
-    identifiers = eligible_seed_identifiers(db, scan.subject_id)
+    identifiers = eligible_seed_identifiers(
+        db, scan.subject_id, requester_user_id=scan.requester_user_id
+    )
     seed_kinds = {i.kind for i in identifiers}
     jobs: list[ConnectorJob] = []
     for cid in registry.enabled_ids():
@@ -335,7 +372,9 @@ def run_connector_job(
     actor = system_actor(f"connector:{job.connector_id}")
     try:
         connector = registry.get_class(job.connector_id)()
-        identifiers = eligible_seed_identifiers(db, scan.subject_id)
+        identifiers = eligible_seed_identifiers(
+        db, scan.subject_id, requester_user_id=scan.requester_user_id
+    )
         seeds = build_seed_queries(identifiers, type(connector))
         findings: list[NormalizedFinding] = []
         cost = 0.0
@@ -615,7 +654,9 @@ def _run_scan_planned(
     pending = {cid for cid, j in jobs.items() if j.status == JobStatus.QUEUED}
     if not pending:
         return
-    identifiers = eligible_seed_identifiers(db, scan.subject_id)
+    identifiers = eligible_seed_identifiers(
+        db, scan.subject_id, requester_user_id=scan.requester_user_id
+    )
     seed_kinds = sorted({i.kind.value for i in identifiers})
     tools = [ConnectorTool.from_connector(registry.get_class(cid)) for cid in sorted(pending)]
     planner = ScanPlanner(client, tools, seed_kinds=seed_kinds)

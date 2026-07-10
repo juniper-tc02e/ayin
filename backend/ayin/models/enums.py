@@ -27,10 +27,12 @@ class VerificationState(str, enum.Enum):
 
 
 class ScanTier(str, enum.Enum):
-    """Consent tiers (PRD §7.2). MVP ships T0 ONLY — the DB also enforces this
-    with a CHECK constraint; widening it requires a migration + ADR."""
+    """Consent tiers (PRD §7.2). T0 = self-scan. T1 = consented third-party scan
+    (ADR-0007 + ADR-0008). The DB CHECK ties tier to purpose: t0⇔self,
+    t1⇔non-self. Widening beyond these requires a migration + ADR."""
 
     T0_SELF = "t0"
+    T1_CONSENTED = "t1"
 
 
 class ScanStatus(str, enum.Enum):
