@@ -21,7 +21,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
 from ayin.api.deps import CurrentUser, DbDep, SettingsDep
@@ -57,16 +57,19 @@ def public_throttle(request: Request) -> None:
 
 
 def require_t1_enabled(settings: SettingsDep) -> None:
-    """Hide the entire T1 surface unless explicitly enabled. 404 (not 403) so a
-    disabled deployment is indistinguishable from one that never had the feature
-    — the consent GATE in the orchestrator stays on regardless."""
+    """Gate NEW consent-request creation when T1 is disabled (404, so a disabled
+    deployment is indistinguishable from one without the feature).
+
+    NOTE: this is applied ONLY to request creation — NOT to accept/decline/view
+    or to either revoke path. A subject must always be able to withdraw an
+    existing grant (bright line: revocable), and existing asks must stay
+    actionable, regardless of whether NEW asks are currently allowed. The
+    orchestrator consent gate is likewise always-on."""
     if not settings.consent_t1_enabled:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found.")
 
 
-router = APIRouter(
-    prefix="/consent", tags=["consent"], dependencies=[Depends(require_t1_enabled)]
-)
+router = APIRouter(prefix="/consent", tags=["consent"])
 
 # Flow error code → HTTP status.
 _FLOW_HTTP = {
@@ -90,6 +93,14 @@ def _http_from_flow(exc: ConsentFlowError) -> HTTPException:
     )
 
 
+def _safe_send(sender: EmailSender, to: str, subject: str, body: str) -> None:
+    """Best-effort send used as a background task — never raises into the request."""
+    try:
+        sender.send(to=to, subject=subject, body=body)
+    except Exception:  # noqa: BLE001
+        log.warning("consent email could not be delivered")  # no PII in logs
+
+
 def _subject_email(db, subject_id: uuid.UUID) -> str | None:
     owner_id = db.execute(
         select(Subject.owner_user_id).where(Subject.id == subject_id)
@@ -99,12 +110,16 @@ def _subject_email(db, subject_id: uuid.UUID) -> str | None:
     return db.execute(select(User.email).where(User.id == owner_id)).scalar_one_or_none()
 
 
-@router.post("/requests", response_model=ConsentRequestOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/requests", response_model=ConsentRequestOut, status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_t1_enabled)],
+)
 def create_request(
     body: ConsentRequestIn,
     user: CurrentUser,
     db: DbDep,
     settings: SettingsDep,
+    background: BackgroundTasks,
     email_sender: EmailSender = Depends(get_email_sender),
 ):
     try:
@@ -119,31 +134,16 @@ def create_request(
     except ConsentFlowError as exc:
         raise _http_from_flow(exc) from None
 
-    # Screened out (excluded / protected / minor): the flow created nothing and
-    # told us nothing. Return an indistinguishable "pending" so the endpoint
-    # can't be used to probe who is protected. No email is sent.
-    if req is None:
-        db.commit()  # persist the screened-attempt audit row
-        now = datetime.now(timezone.utc)
-        return ConsentRequestOut(
-            id=uuid.uuid4(),
-            subject_email=str(body.subject_email).strip().lower(),
-            purpose=body.purpose[:200],
-            status="pending",
-            ttl_days=body.ttl_days,
-            expires_at=now + timedelta(days=flow.REQUEST_TTL_DAYS),
-            created_at=now,
-        )
-
-    # Deliver the ask to the SUBJECT's own channel. A delivery failure must not
-    # 500 the request (the row exists; resend can follow) — mirror the
-    # identifier-challenge hardening.
-    link = f"{settings.web_base_url}/consent?token={raw}"
-    try:
-        email_sender.send(
-            to=req.subject_email,
-            subject=f"{user.email} is requesting your consent to run an Ayin scan",
-            body=(
+    # Deliver the ask ONLY when the target isn't screened (excluded/protected/
+    # minor). The send is scheduled AFTER the response (BackgroundTasks) so the
+    # HTTP latency does not depend on the screening outcome — no timing oracle —
+    # and a screened row is created + returned identically but never emailed.
+    if not req.screened:
+        link = f"{settings.web_base_url}/consent?token={raw}"
+        background.add_task(
+            _safe_send, email_sender, req.subject_email,
+            f"{user.email} is requesting your consent to run an Ayin scan",
+            (
                 f"{user.email} would like your permission to run an Ayin exposure "
                 f"scan of your public footprint.\n\n"
                 f"Purpose: {req.purpose}\n"
@@ -154,18 +154,15 @@ def create_request(
                 f"nothing about you will be scanned without your explicit consent."
             ),
         )
-    except Exception:  # noqa: BLE001 — delivery is best-effort; never load-bearing
-        log.warning("consent ask email could not be delivered to %s", req.subject_email)
-    db.commit()
-    return ConsentRequestOut(
-        id=req.id,
-        subject_email=req.subject_email,
-        purpose=req.purpose,
-        status=req.status,
-        ttl_days=req.ttl_days,
-        expires_at=req.expires_at,
+    # Response is built from the real row in BOTH cases — identical shape, and the
+    # purpose is the sanitized stored value (no unsanitized-echo content oracle).
+    out = ConsentRequestOut(
+        id=req.id, subject_email=req.subject_email, purpose=req.purpose,
+        status=req.status, ttl_days=req.ttl_days, expires_at=req.expires_at,
         created_at=req.created_at,
     )
+    db.commit()
+    return out
 
 
 @router.get(
@@ -299,5 +296,5 @@ def revoke_grant_endpoint(grant_id: uuid.UUID, user: CurrentUser, db: DbDep):
     ).scalar_one_or_none()
     if user.id not in {owner_id, grant.requester_user_id}:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your grant to revoke.")
-    flow.revoke_consent(db, grant=grant)
+    flow.revoke_consent(db, grant=grant, actor_user_id=user.id)
     db.commit()

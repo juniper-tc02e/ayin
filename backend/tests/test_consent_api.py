@@ -49,9 +49,12 @@ def test_t1_surface_hidden_when_flag_off(sender):
     with TestClient(app) as c:
         assert c.get("/config").json()["consent_t1_enabled"] is False
         _signup(c, f"req-{uuid.uuid4().hex[:8]}@example.org")
+        # NEW request creation is gated off...
         r = c.post("/consent/requests", json={"subject_email": "x@example.org", "purpose": "p"})
         assert r.status_code == 404
-        assert c.get("/consent/grants").status_code == 404
+        # ...but managing/revoking existing consent is NOT gated (a subject must
+        # always be able to withdraw), so /grants stays reachable (empty here).
+        assert c.get("/consent/grants").status_code == 200
 
 
 def _signup(client, email):

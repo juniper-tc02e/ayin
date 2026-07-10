@@ -72,13 +72,20 @@ def _now(now: datetime | None) -> datetime:
 # inbox and rendered on the consent page — a phishing-by-proxy vector. Strip
 # anything link-shaped so an attacker can't smuggle a lure under Ayin's brand.
 _URL_RE = re.compile(
+    # explicit scheme or www.
     r"(?:https?://|www\.)\S+"
-    r"|\b[\w-]+\.(?:com|net|org|io|co|xyz|info|link|app|ru|cn|tk|ml|ga|gq|cf|top|live|click|zip|mov)\b\S*",
+    # bare host with a path (any TLD) — link shorteners included (bit.ly/x, t.co/y)
+    r"|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+/\S*"
+    # bare host on a known / abused TLD, no path required
+    r"|\b[a-z0-9-]+\.(?:com|net|org|io|co|xyz|info|link|app|ru|cn|tk|ml|ga|gq|cf|top|live|click|zip|mov|ly|gl|me|gd|sh|to|be|is|st|cc|ws|biz|site|online|shop|store|dev|ai)\b\S*",
     re.IGNORECASE,
 )
 
 
 def _sanitize_purpose(purpose: str) -> str:
+    """Strip link-shaped text: a phishing lure delivered to an unconsenting inbox
+    (and rendered on the consent page) is exactly what the purpose field must not
+    carry. Over-stripping the odd 'e.g.' is acceptable — under-stripping is not."""
     cleaned = _URL_RE.sub("[link removed]", purpose or "")
     return re.sub(r"\s+", " ", cleaned).strip()
 
@@ -186,14 +193,12 @@ def request_consent(
     purpose: str,
     ttl_days: int = 30,
     now: datetime | None = None,
-) -> tuple[ConsentRequest | None, str | None]:
+) -> tuple[ConsentRequest, str]:
     """Create a pending ask and return ``(request, raw_token)``. The caller
-    delivers the token via a link to ``subject_email`` (the subject's channel).
-
-    Returns ``(None, None)`` when the target is screened out (excluded /
-    protected / minor): the caller must treat that as an indistinguishable
-    success — no row, no email, no reason revealed — so the endpoint can't be
-    used to probe protection-list membership.
+    delivers the token via a link to ``subject_email`` (the subject's channel) —
+    UNLESS ``request.screened`` is True (excluded/protected/minor target), in
+    which case the caller must NOT email it. The row is created either way so the
+    endpoint's response is indistinguishable and can't probe the protection list.
 
     Nothing is authorized by this call — only the subject's later acceptance is.
     """
@@ -213,15 +218,11 @@ def request_consent(
         )
     _enforce_request_limits(db, requester_id=requester.id, email_norm=email_norm, now=now)
 
-    if _screen_subject(db, email_norm=email_norm, usernames=usernames, now=now):
-        # Excluded / protected / minor target. Silent no-op: no row, no email,
-        # no reason. Audit the attempt (a requester probing protected people is
-        # a T&S signal) with only a generic class — never the matched list.
-        record_event(
-            db, actor=user_actor(requester.id), event_type="consent.request_screened",
-            detail={"subject_email": email_norm},
-        )
-        return None, None
+    # Excluded / protected / minor target → screened. We STILL create an
+    # identical, rate-limit-counting row (so a repeat call behaves the same and
+    # the response is indistinguishable — no protection-list oracle), but the
+    # caller must not email it and it can never be accepted (see accept_consent).
+    screened = bool(_screen_subject(db, email_norm=email_norm, usernames=usernames, now=now))
 
     raw = secrets.token_urlsafe(32)
     req = ConsentRequest(
@@ -233,14 +234,20 @@ def request_consent(
         status=CONSENT_PENDING,
         token_hash=_sha(raw),
         expires_at=now + timedelta(days=REQUEST_TTL_DAYS),
+        screened=screened,
     )
     db.add(req)
     db.flush()
     record_event(
         db,
         actor=user_actor(requester.id),
-        event_type="consent.requested",
-        detail={"subject_email": email_norm, "purpose": req.purpose, "ttl_days": req.ttl_days},
+        # Screened attempts are audited under a distinct type (a requester probing
+        # protected people is a T&S signal) but with only a generic class.
+        event_type="consent.request_screened" if screened else "consent.requested",
+        detail={
+            "subject_email": email_norm, "purpose": req.purpose,
+            "ttl_days": req.ttl_days, "screened": screened,
+        },
     )
     return req, raw
 
@@ -254,7 +261,7 @@ def load_request(
     req = db.execute(
         select(ConsentRequest).where(ConsentRequest.token_hash == _sha(raw_token))
     ).scalar_one_or_none()
-    if req is None or req.status != CONSENT_PENDING or req.expires_at < now:
+    if req is None or req.screened or req.status != CONSENT_PENDING or req.expires_at < now:
         return None
     return req
 
@@ -347,7 +354,9 @@ def accept_consent(
     req = db.execute(
         select(ConsentRequest).where(ConsentRequest.token_hash == _sha(raw_token))
     ).scalar_one_or_none()
-    if req is None or req.status != CONSENT_PENDING or req.expires_at < now:
+    # A screened row is treated exactly like an invalid link — it can never be
+    # accepted (its token was never delivered; this is defense-in-depth).
+    if req is None or req.screened or req.status != CONSENT_PENDING or req.expires_at < now:
         raise ConsentFlowError(
             "invalid_or_expired", "This consent link is invalid, used, or expired."
         )
@@ -458,24 +467,31 @@ def decline_consent(
 
 
 def revoke_consent(
-    db: Session, *, grant: ConsentGrant, now: datetime | None = None
+    db: Session,
+    *,
+    grant: ConsentGrant,
+    actor_user_id: uuid.UUID | None = None,
+    now: datetime | None = None,
 ) -> int:
     """Withdraw consent — effective immediately. Revokes ALL not-yet-revoked
     grants for this grant's (subject, requester) pair (so a duplicate live grant
     can't survive), and ALWAYS audits the attempt even if nothing was live (so
-    the audit trail is honest about revocations). Returns how many rows changed."""
+    the audit trail is honest about revocations). Returns how many rows changed.
+
+    ``actor_user_id`` is who performed the revoke (the requester, when they give
+    up access via the authed endpoint); default = the subject (their own act,
+    e.g. the tokened link) so the audit attributes revocation correctly."""
     now = _now(now)
     revoked = revoke_all_active(
         db, subject_id=grant.subject_id, requester_user_id=grant.requester_user_id, now=now,
     )
-    owner_id = db.execute(
-        select(Subject.owner_user_id).where(Subject.id == grant.subject_id)
-    ).scalar_one_or_none()
+    if actor_user_id is None:
+        actor_user_id = db.execute(
+            select(Subject.owner_user_id).where(Subject.id == grant.subject_id)
+        ).scalar_one_or_none()
+    actor = user_actor(actor_user_id) if actor_user_id else user_actor(grant.requester_user_id)
     record_event(
-        db,
-        actor=user_actor(owner_id) if owner_id else user_actor(grant.requester_user_id),
-        event_type="consent.revoked",
-        subject_id=grant.subject_id,
+        db, actor=actor, event_type="consent.revoked", subject_id=grant.subject_id,
         detail={"requester_user_id": str(grant.requester_user_id), "count": len(revoked)},
     )
     return len(revoked)
@@ -486,13 +502,16 @@ def revoke_by_token(
 ) -> bool:
     """Subject withdraws consent via the one-click revoke link (no login). Looks
     up the grant by revoke-token hash and revokes the whole (subject, requester)
-    pair. Returns False if the token matches nothing (route → 404)."""
+    pair. Returns False if the token matches nothing OR the grant it was minted
+    for has already expired — so a stale/leaked link can't act on a later,
+    unrelated grant for the same pair."""
+    now = _now(now)
     grant = db.execute(
         select(ConsentGrant).where(ConsentGrant.revoke_token_hash == _sha(raw_token))
     ).scalar_one_or_none()
-    if grant is None:
+    if grant is None or grant.expires_at <= now:
         return False
-    revoke_consent(db, grant=grant, now=now)
+    revoke_consent(db, grant=grant, now=now)  # subject acts (default actor = owner)
     return True
 
 

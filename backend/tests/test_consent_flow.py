@@ -239,33 +239,46 @@ def _protect_email(db, email):
     db.commit()
 
 
-def test_request_to_excluded_subject_is_silently_suppressed(db):
+def _assert_screened_and_unacceptable(db, req, raw):
+    # A row IS created (indistinguishable response, counts toward limits) but is
+    # flagged screened → never viewable/acceptable, and the caller won't email it.
+    assert req is not None and req.screened is True
+    assert flow.load_request(db, raw_token=raw, now=NOW) is None
+    with pytest.raises(ConsentFlowError) as ei:
+        flow.accept_consent(db, raw_token=raw, adult_attested=True, now=NOW)
+    assert ei.value.code == "invalid_or_expired"
+
+
+def test_request_to_excluded_subject_is_screened_not_acceptable(db):
     r = _requester(db)
     email = _subject_email()
     _exclude_email(db, email)
     req, raw = flow.request_consent(
         db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW
     )
-    assert req is None and raw is None  # no row, no email, no reason revealed
+    db.commit()
+    _assert_screened_and_unacceptable(db, req, raw)
 
 
-def test_request_to_protected_subject_is_silently_suppressed(db):
+def test_request_to_protected_subject_is_screened_not_acceptable(db):
     r = _requester(db)
     email = _subject_email()
     _protect_email(db, email)
     req, raw = flow.request_consent(
         db, requester=r, subject_email=email, usernames=[], purpose="x", now=NOW
     )
-    assert req is None and raw is None
+    db.commit()
+    _assert_screened_and_unacceptable(db, req, raw)
 
 
-def test_request_with_minor_handle_is_suppressed(db):
+def test_request_with_minor_handle_is_screened(db):
     r = _requester(db)
     req, raw = flow.request_consent(
         db, requester=r, subject_email=_subject_email(), usernames=["skater2015"],
         purpose="x", now=NOW,
     )
-    assert req is None and raw is None  # birth-year handle → minor signal
+    db.commit()
+    _assert_screened_and_unacceptable(db, req, raw)  # birth-year handle → minor
 
 
 def test_accept_refuses_when_subject_excluded_after_request(db):

@@ -69,7 +69,17 @@ def get_vault(settings: SettingsDep) -> VaultProtocol:
         return NullVault()
 
 
-def _scan_out(db, scan: Scan) -> ScanOut:
+def _scan_out(db, scan: Scan, *, redact: bool = False) -> ScanOut:
+    if redact:
+        # Third-party (T1) scan: results belong to the SUBJECT. The requester who
+        # ran it gets confirmation only — never job/source/finding-count signal
+        # about someone else's exposure (ADR-0007 result-delivery decision).
+        return ScanOut(
+            id=scan.id, status=scan.status.value, tier=scan.tier.value,
+            purpose=scan.purpose, error=None, source_set=[], created_at=scan.created_at,
+            started_at=scan.started_at, finished_at=scan.finished_at,
+            progress=ScanProgress(jobs_total=0, jobs_done=0, jobs_failed=0), jobs=[],
+        )
     jobs = db.execute(
         select(ConnectorJob).where(ConnectorJob.scan_id == scan.id).order_by(
             ConnectorJob.connector_id
@@ -126,6 +136,7 @@ def start_scan(
     # unless this requester holds a live grant. Loading the row authorizes
     # nothing on its own.
     target: Subject | None = None
+    is_third_party = False
     if body is not None and body.subject_id is not None:
         if not settings.consent_t1_enabled:
             # T1 surface disabled — the consent gate would refuse anyway (no
@@ -134,6 +145,10 @@ def start_scan(
         target = db.get(Subject, body.subject_id)
         if target is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Subject not found.")
+        # Whether this scan targets someone other than the requester — captured
+        # before expire_all() so the response can be redacted (results are the
+        # subject's, not the requester's).
+        is_third_party = target.owner_user_id != user.id
     inline = settings.scan_execution == "inline"
     scan, result = engine.start_scan(
         db, requester=user, settings=settings, registry=registry, vault=vault,
@@ -158,7 +173,7 @@ def start_scan(
     db.expire_all()
     fresh = db.get(Scan, scan.id)
     assert fresh is not None  # just created in this request
-    return _scan_out(db, fresh)
+    return _scan_out(db, fresh, redact=is_third_party)
 
 
 @router.get("", response_model=list[ScanOut])

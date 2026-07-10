@@ -111,6 +111,11 @@ class ConsentRequest(Base, UuidPkMixin, CreatedAtMixin):
     ttl_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     # pending | granted | declined | expired.
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=CONSENT_PENDING)
+    # True when the target was excluded/protected/minor: the row is created and
+    # counts toward rate limits (so the endpoint response is indistinguishable
+    # from a normal ask — no protection-list oracle), but NO email is sent and it
+    # can NEVER be accepted. See flow.request_consent / accept_consent.
+    screened: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="false")
     # sha256 of the single-use link token (raw token is emailed, never stored).
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     # When the *ask* itself expires (distinct from the grant's own window).
