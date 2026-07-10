@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { api, ApiError, ConsentGrant, ConsentRequestResult, Scan } from "@/lib/api";
 
 /**
@@ -13,7 +12,6 @@ import { api, ApiError, ConsentGrant, ConsentRequestResult, Scan } from "@/lib/a
  * creates asks and lists/uses/withdraws grants the subject already gave.
  */
 export default function ConsentManager() {
-  const router = useRouter();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [grants, setGrants] = useState<ConsentGrant[]>([]);
   const [email, setEmail] = useState("");
@@ -70,12 +68,17 @@ export default function ConsentManager() {
 
   async function scanNow(g: ConsentGrant) {
     setError(null);
+    setNotice(null);
     try {
-      const scan = await api<Scan>("/scans", {
+      await api<Scan>("/scans", {
         method: "POST",
         body: { subject_id: g.subject_id },
       });
-      router.push(`/report/${scan.id}`);
+      const subject = g.subject_email ?? g.subject_id.slice(0, 8);
+      setNotice(
+        `Scan started for ${subject}. Results are delivered to ${subject} — Ayin never ` +
+          `shows you another person's findings. You'll only see that it ran.`
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not start the scan.");
     }

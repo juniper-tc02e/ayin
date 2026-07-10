@@ -21,7 +21,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
 from ayin.api.deps import CurrentUser, DbDep, SettingsDep
@@ -36,11 +36,24 @@ from ayin.api.schemas import (
 from ayin.api.routes.auth import get_email_sender
 from ayin.consent import flow
 from ayin.consent.flow import ConsentFlowError
-from ayin.consent.store import active_consent
 from ayin.models import ConsentGrant, Subject, User
+from ayin.safety.ip_throttle import IpRateLimiter
 from ayin.services.email import EmailSender
 
 log = logging.getLogger("ayin.consent")
+
+# Per-IP throttle for the UNAUTHENTICATED token endpoints (view/accept/decline/
+# revoke-by-token). Module-global so it persists across requests; process-local.
+_public_limiter = IpRateLimiter(max_hits=30, window_seconds=300)
+
+
+def public_throttle(request: Request) -> None:
+    ip = request.client.host if request.client else "unknown"
+    if not _public_limiter.allow(ip):
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many requests — please wait a moment and try again.",
+        )
 
 
 def require_t1_enabled(settings: SettingsDep) -> None:
@@ -155,7 +168,10 @@ def create_request(
     )
 
 
-@router.get("/requests/{token}", response_model=ConsentAskOut)
+@router.get(
+    "/requests/{token}", response_model=ConsentAskOut,
+    dependencies=[Depends(public_throttle)],
+)
 def view_request(token: str, db: DbDep):
     req = flow.load_request(db, raw_token=token)
     if req is None:
@@ -174,8 +190,17 @@ def view_request(token: str, db: DbDep):
     )
 
 
-@router.post("/requests/{token}/accept", response_model=ConsentAcceptOut)
-def accept_request(token: str, body: ConsentAcceptIn, db: DbDep):
+@router.post(
+    "/requests/{token}/accept", response_model=ConsentAcceptOut,
+    dependencies=[Depends(public_throttle)],
+)
+def accept_request(
+    token: str,
+    body: ConsentAcceptIn,
+    db: DbDep,
+    settings: SettingsDep,
+    email_sender: EmailSender = Depends(get_email_sender),
+):
     try:
         grant = flow.accept_consent(
             db, raw_token=token, adult_attested=body.adult_attested
@@ -183,20 +208,66 @@ def accept_request(token: str, body: ConsentAcceptIn, db: DbDep):
     except ConsentFlowError as exc:
         db.rollback()
         raise _http_from_flow(exc) from None
+    # Capture before commit (mapped attrs expire on commit; the raw revoke token
+    # is an unmapped transient set by accept_consent).
+    subject_id = grant.subject_id
+    requester_id = grant.requester_user_id
+    scope = grant.scope
+    expires_at = grant.expires_at
+    raw_revoke = getattr(grant, "raw_revoke_token", None)
     db.commit()
+
+    # Confirmation email to the SUBJECT carrying the one-click revoke link, so a
+    # login-less subject can withdraw any time. Best-effort — never 500s accept.
+    if raw_revoke:
+        subj_email = _subject_email(db, subject_id)
+        requester_email = db.execute(
+            select(User.email).where(User.id == requester_id)
+        ).scalar_one_or_none()
+        revoke_link = f"{settings.web_base_url}/consent/revoke?token={raw_revoke}"
+        if subj_email:
+            try:
+                email_sender.send(
+                    to=subj_email,
+                    subject="You authorized an Ayin scan — how to revoke",
+                    body=(
+                        f"You authorized {requester_email or 'a requester'} to run an "
+                        f"Ayin exposure scan of your public footprint.\n\n"
+                        f"This consent is time-bound and you can withdraw it at any "
+                        f"time — one click, no account needed:\n{revoke_link}\n\n"
+                        f"If you did not authorize this, use the link above to revoke "
+                        f"immediately."
+                    ),
+                )
+            except Exception:  # noqa: BLE001 — delivery is best-effort
+                log.warning("consent revoke-link email could not be delivered")
     return ConsentAcceptOut(
-        granted=True, subject_id=grant.subject_id, scope=grant.scope,
-        expires_at=grant.expires_at,
+        granted=True, subject_id=subject_id, scope=scope, expires_at=expires_at,
     )
 
 
-@router.post("/requests/{token}/decline", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/requests/{token}/decline", status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(public_throttle)],
+)
 def decline_request(token: str, db: DbDep):
     try:
         flow.decline_consent(db, raw_token=token)
     except ConsentFlowError as exc:
         db.rollback()
         raise _http_from_flow(exc) from None
+    db.commit()
+
+
+@router.post(
+    "/revoke/{token}", status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(public_throttle)],
+)
+def revoke_by_token_endpoint(token: str, db: DbDep):
+    """The subject's one-click revoke link (no login). Revokes the whole
+    (subject, requester) pair the token belongs to; 404 if the token is unknown."""
+    if not flow.revoke_by_token(db, raw_token=token):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This revoke link is invalid.")
     db.commit()
 
 
@@ -215,13 +286,11 @@ def my_grants(user: CurrentUser, db: DbDep):
 
 @router.post("/grants/{grant_id}/revoke", status_code=status.HTTP_204_NO_CONTENT)
 def revoke_grant_endpoint(grant_id: uuid.UUID, user: CurrentUser, db: DbDep):
-    """Withdraw a grant. Permitted for the SUBJECT (their right) or the REQUESTER
-    (giving up their own access) — both only ever reduce access, never expand it.
-
-    A login-less subject (created via a consent link) can't authenticate here; a
-    tokened email revoke link for that case is a follow-up. The grant is always
-    time-bound regardless, and the requester can revoke on the subject's behalf.
-    """
+    """Withdraw consent. Permitted for the SUBJECT (their right, when they have an
+    account) or the REQUESTER (giving up their own access) — both only ever reduce
+    access. Login-less subjects use the one-click email link (POST /consent/revoke/
+    {token}). Revokes ALL live grants for the pair and always audits the attempt,
+    so a duplicate grant can't survive and the trail is honest."""
     grant = db.get(ConsentGrant, grant_id)
     if grant is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Grant not found.")
@@ -230,6 +299,5 @@ def revoke_grant_endpoint(grant_id: uuid.UUID, user: CurrentUser, db: DbDep):
     ).scalar_one_or_none()
     if user.id not in {owner_id, grant.requester_user_id}:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your grant to revoke.")
-    if active_consent(db, subject_id=grant.subject_id, requester_user_id=grant.requester_user_id):
-        flow.revoke_consent(db, grant=grant)
-        db.commit()
+    flow.revoke_consent(db, grant=grant)
+    db.commit()

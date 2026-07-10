@@ -76,7 +76,36 @@ def record_grant(
 
 
 def revoke_grant(db: Session, grant: ConsentGrant, *, now: datetime | None = None) -> None:
-    """Subject revokes — effective immediately (active_consent then returns None)."""
+    """Subject revokes ONE grant — effective immediately. Prefer
+    ``revoke_all_active`` at call sites so a duplicate live grant can't survive a
+    revoke (audit finding: revoking one grant_id left a sibling active)."""
     if grant.revoked_at is None:
         grant.revoked_at = now or datetime.now(timezone.utc)
         db.flush()
+
+
+def revoke_all_active(
+    db: Session,
+    *,
+    subject_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
+    now: datetime | None = None,
+) -> list[ConsentGrant]:
+    """Revoke EVERY not-yet-revoked grant for this (subject, requester) pair —
+    the honest revoke. Targets ``revoked_at IS NULL`` regardless of expiry, so an
+    expired-but-unrevoked row is also honestly closed, and duplicate live grants
+    can't leave the pair still-authorized after a revoke. Returns the rows it
+    revoked (possibly empty)."""
+    now = now or datetime.now(timezone.utc)
+    grants = list(db.execute(
+        select(ConsentGrant).where(
+            ConsentGrant.subject_id == subject_id,
+            ConsentGrant.requester_user_id == requester_user_id,
+            ConsentGrant.revoked_at.is_(None),
+        )
+    ).scalars().all())
+    for g in grants:
+        g.revoked_at = now
+    if grants:
+        db.flush()
+    return grants

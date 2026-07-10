@@ -90,12 +90,14 @@ created by the subject's own verified action.** Concretely:
 An adversarial pre-deploy audit (a workflow of finders + a completeness critic)
 found that the feature shipped the *authorize* half without a complete, safe
 *deliver / revoke / screen* half. These MUST land and re-pass the audit before
-`consent_t1_enabled` is turned on in prod:
+`consent_t1_enabled` is turned on in prod. **All six are now implemented (behind
+the flag); a re-audit is the last gate before flipping it on.**
 
-1. **Subject-side revocation (HIGH).** A login-less subject can't authenticate,
-   so today only the owner-account or the requester can revoke — which is not
-   subject control. Ship a tokened one-click email revoke link (in the ask and
-   the on-accept confirmation).
+1. **Subject-side revocation (HIGH). — DONE.** `accept_consent` mints a single-use
+   revoke-token hash (`consent_grants.revoke_token_hash`, migration 0018); the
+   on-accept confirmation email carries a one-click `/consent/revoke?token=` link,
+   and `POST /consent/revoke/{token}` (public) revokes with no login. The frontend
+   `/consent/revoke` page POSTs on click (email prefetch can't trigger it).
 2. **Request-time exclusion/minor screening (HIGH). — DONE.** `request_consent`
    now screens the target (email + proposed handles) against the exclusion +
    victim-protection lists and the minor heuristics, and **silently no-ops** on a
@@ -104,28 +106,37 @@ found that the feature shipped the *authorize* half without a complete, safe
    `accept_consent` re-screens and **refuses to mint** (and to verify the email /
    seed handles) on a match. Reuses the exact scan-gate safety logic
    (`safety.abuse.screen_subject_identifiers` + `safety.exclusion.split_excluded`).
-3. **Don't mutate a pre-existing real account via the accept side-door (MED).**
-   Seed handles as *unconfirmed* / require the subject to confirm per-handle;
-   never auto-VERIFY an existing user's email through a third-party-initiated flow.
-4. **One effective grant + honest revoke (MED).** Revoke ALL active grants for
-   `(subject, requester)`, always audit the revoke attempt, and revoke even an
-   already-expired row.
-5. **T1 result-delivery model (MED).** Default decision: **results belong to the
-   subject; the requester is never shown another person's findings** (only a
-   "scan completed" confirmation). The requester read path stays closed.
-6. **Throttle + anti-phishing on the public token endpoints (MED/LOW).** Per-IP
-   limits on view/accept/decline; strip URLs from `purpose`; anti-phishing notice
-   + report-abuse affordance on the consent page.
+3. **Don't mutate a pre-existing real account via the accept side-door (MED). —
+   DONE.** `accept_consent` only verifies the email + seeds handles for a
+   login-less record it created (`user.password_hash is None`); a pre-existing
+   real account is never mutated by the third-party-initiated flow (its scan
+   simply needs its own verified anchor).
+4. **One effective grant + honest revoke (MED). — DONE.**
+   `store.revoke_all_active` revokes EVERY not-yet-revoked grant for the
+   `(subject, requester)` pair (so a duplicate live grant can't survive), even an
+   expired-but-unrevoked one; `flow.revoke_consent` always audits the attempt with
+   a count. The authenticated revoke endpoint no longer no-ops on an expired grant.
+5. **T1 result-delivery model (MED). — DONE.** Decided: **results belong to the
+   subject; the requester is never shown another person's findings.** The scan
+   read endpoints stay owner-scoped (a requester 404s on a consented subject's
+   scan — regression-tested); the requester UI now shows a "scan started, results
+   go to them" confirmation instead of routing to a report.
+6. **Throttle + anti-phishing on the public token endpoints (MED/LOW). — DONE.**
+   `safety.ip_throttle.IpRateLimiter` caps the unauthenticated token endpoints
+   (view/accept/decline/revoke) per IP; `flow._sanitize_purpose` strips link-shaped
+   text from `purpose`; the consent page carries an anti-phishing notice +
+   report-abuse mailto.
 
 - **Still out of scope:** requester identity-proofing beyond an Ayin account
   (e.g. SingPass/org verification).
 
 ## Verification
 
-`backend/tests/test_consent_gate.py` (8) — gate verdict for self / no-consent /
-valid / revoked / expired / non-adult / excluded-wins / requester-specific.
-`test_consent_flow.py` (11) — request→accept→revoke flips the gate; bright-line
-refusals; single-use; existing-user attach; request rate-limit/dedupe caps.
-`test_consent_api.py` (6) — the HTTP flow end-to-end + the scan endpoint's 403 on
-a stranger + the flag-off surface 404. Full suite 367 passed; frontend typecheck
-+ build green.
+`backend/tests/test_consent_gate.py` (8) — gate verdicts. `test_consent_flow.py`
+(24) — request→accept→revoke flips the gate; bright-line refusals; single-use;
+rate-limit/dedupe; exclusion/protection/minor screening; no-account-mutation;
+revoke-all + honest-expired revoke; subject revoke-link token; purpose URL-strip.
+`test_consent_api.py` (10) — HTTP flow end-to-end; flag-off 404; third-party 403;
+revoke-link email works unauthenticated; requester can't read a subject's scan;
+public endpoints IP-throttled. Frontend typecheck + build green. Re-audit pending
+before `consent_t1_enabled` flips on in prod.

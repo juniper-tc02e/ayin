@@ -131,10 +131,11 @@ function ConsentInner() {
       </div>
 
       <div className="card">
-        <p className="dim" style={{ marginTop: 0, fontSize: "0.9rem" }}>
-          Ayin only reads <strong>publicly available</strong> sources, never private
-          accounts, and you can withdraw this consent whenever you like. If you don’t
-          recognize this request, decline — nothing about you will be scanned.
+        <p style={{ marginTop: 0, fontSize: "0.9rem", color: "var(--warn)" }}>
+          ⚠️ Only authorize if you recognize <strong>{ask.requester_email}</strong> and were
+          expecting this request. Ayin only reads <strong>publicly available</strong> sources
+          — never private accounts — and you can withdraw consent whenever you like. If you
+          don’t recognize this request, choose Decline — nothing about you will be scanned.
         </p>
         <label style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", margin: "0.5rem 0 1rem" }}>
           <input
@@ -154,6 +155,14 @@ function ConsentInner() {
           </button>
         </div>
         {actionError && <p style={{ color: "var(--down)", marginBottom: 0 }}>{actionError}</p>}
+        <p className="dim" style={{ marginTop: "0.75rem", marginBottom: 0, fontSize: "0.8rem" }}>
+          <a
+            href="mailto:abuse@superayin.com?subject=Consent%20request%20abuse%20report"
+            style={{ color: "inherit" }}
+          >
+            Report this request as abuse
+          </a>
+        </p>
       </div>
     </main>
   );

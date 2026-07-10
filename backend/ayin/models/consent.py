@@ -56,6 +56,12 @@ class ConsentGrant(Base, UuidPkMixin, CreatedAtMixin):
     adult_attested: Mapped[bool] = mapped_column(nullable=False, default=False)
     # How the subject's affirmative action was proven (e.g. "link_token").
     verified_via: Mapped[str] = mapped_column(String(40), nullable=False, default="link_token")
+    # sha256 of a single-use revoke token emailed to the subject on accept, so a
+    # login-less subject (no account, no password) can still withdraw consent with
+    # one click — the raw token is never stored. Null on legacy/self-scan rows.
+    revoke_token_hash: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
 
     def is_active(self, now: datetime) -> bool:
         return (
