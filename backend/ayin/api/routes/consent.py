@@ -203,7 +203,12 @@ def accept_request(
             db, raw_token=token, adult_attested=body.adult_attested
         )
     except ConsentFlowError as exc:
-        db.rollback()
+        # A screening refusal wrote an audit row we want to keep; other failures
+        # roll back cleanly.
+        if exc.code in ("minor_suspected", "screening_failed"):
+            db.commit()
+        else:
+            db.rollback()
         raise _http_from_flow(exc) from None
     # Capture before commit (mapped attrs expire on commit; the raw revoke token
     # is an unmapped transient set by accept_consent).

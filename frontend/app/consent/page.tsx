@@ -82,9 +82,9 @@ function ConsentInner() {
         <h1>Consent granted</h1>
         <div className="card">
           <p style={{ margin: 0 }}>
-            Thank you — you’ve authorized this scan. It’s time-bound and you can revoke it
-            at any time by replying to that email or contacting Ayin. Nothing beyond what
-            you authorized will be scanned.
+            Thank you — you’ve authorized this scan. It’s time-bound, and we’ve emailed you
+            a confirmation with a one-click <strong>revoke link</strong> — use it any time to
+            withdraw, no account needed. Nothing beyond what you authorized will be scanned.
           </p>
         </div>
       </main>

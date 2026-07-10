@@ -39,7 +39,7 @@ from ayin.models.enums import IdentifierKind, VerificationState
 from ayin.models.subject import Identifier, Subject
 from ayin.models.user import User
 from ayin.safety.abuse import screen_subject_identifiers
-from ayin.safety.audit import record_event, user_actor
+from ayin.safety.audit import record_event, system_actor, user_actor
 from ayin.safety.exclusion import split_excluded
 from ayin.services.normalize import IdentifierValidationError, normalize_identifier
 
@@ -382,6 +382,13 @@ def accept_consent(
         usernames=(req.scope_usernames or "").splitlines(), now=now,
     )
     if screen:
+        # Audit the refusal (a protected/excluded/minor subject reached the accept
+        # step) with only a generic class — the caller commits this even though it
+        # raises. Neutral actor: no party's identity is verified at this point.
+        record_event(
+            db, actor=system_actor("consent"), event_type="consent.accept_screened",
+            detail={"class": screen.split(":")[0]},
+        )
         if screen.startswith("minor"):
             raise ConsentFlowError(
                 "minor_suspected",
