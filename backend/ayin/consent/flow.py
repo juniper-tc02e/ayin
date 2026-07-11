@@ -461,14 +461,17 @@ def decline_consent(
     req = db.execute(
         select(ConsentRequest).where(ConsentRequest.token_hash == _sha(raw_token))
     ).scalar_one_or_none()
-    if req is None or req.status != CONSENT_PENDING or req.expires_at < now:
+    if req is None or req.screened or req.status != CONSENT_PENDING or req.expires_at < now:
         raise ConsentFlowError("invalid_or_expired", "This consent link is invalid or expired.")
     req.status = CONSENT_DECLINED
     req.responded_at = now
     db.flush()
+    # The SUBJECT declined (they hold the emailed link) — but no subject user
+    # record exists on a decline, so attribute to a neutral system actor rather
+    # than falsely to the requester.
     record_event(
         db,
-        actor=user_actor(req.requester_user_id),
+        actor=system_actor("consent"),
         event_type="consent.declined",
         detail={"subject_email": req.subject_email},
     )

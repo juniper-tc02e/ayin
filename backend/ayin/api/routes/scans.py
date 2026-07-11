@@ -72,12 +72,13 @@ def get_vault(settings: SettingsDep) -> VaultProtocol:
 def _scan_out(db, scan: Scan, *, redact: bool = False) -> ScanOut:
     if redact:
         # Third-party (T1) scan: results belong to the SUBJECT. The requester who
-        # ran it gets confirmation only — never job/source/finding-count signal
-        # about someone else's exposure (ADR-0007 result-delivery decision).
+        # ran it gets a fixed confirmation only — never job/source/finding-count
+        # signal, and never the real status (a "held" status would re-reveal a
+        # victim-protection match). ADR-0007 result-delivery decision.
         return ScanOut(
-            id=scan.id, status=scan.status.value, tier=scan.tier.value,
+            id=scan.id, status="accepted", tier=scan.tier.value,
             purpose=scan.purpose, error=None, source_set=[], created_at=scan.created_at,
-            started_at=scan.started_at, finished_at=scan.finished_at,
+            started_at=None, finished_at=None,
             progress=ScanProgress(jobs_total=0, jobs_done=0, jobs_failed=0), jobs=[],
         )
     jobs = db.execute(

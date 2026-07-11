@@ -394,6 +394,31 @@ def test_revoke_by_unknown_token_is_false(db):
     assert flow.revoke_by_token(db, raw_token="not-a-real-token-xxxxx") is False
 
 
+def test_third_party_scan_excludes_the_subjects_phone(db):
+    # The anchor allowed for a third-party scan is the verified EMAIL only —
+    # never the subject's phone (or other verified identifiers) they never
+    # consented to that requester scanning.
+    from ayin.orchestrator.engine import eligible_seed_identifiers
+
+    r = _requester(db)
+    su, subject = _subject_record(db)
+    db.add(Identifier(
+        subject_id=subject.id, kind=IdentifierKind.PHONE,
+        value_raw="+15551234567", value_normalized="+15551234567",
+        verification_state=VerificationState.VERIFIED, verified_at=NOW,
+    ))
+    db.add(Identifier(
+        subject_id=subject.id, kind=IdentifierKind.EMAIL,
+        value_raw=su.email, value_normalized=su.email,
+        verification_state=VerificationState.VERIFIED, verified_at=NOW,
+    ))
+    record_grant(db, subject_id=subject.id, requester_user_id=r.id, purpose="x", adult_attested=True)
+    db.commit()
+    kinds = {i.kind for i in eligible_seed_identifiers(db, subject.id, requester_user_id=r.id)}
+    assert IdentifierKind.EMAIL in kinds
+    assert IdentifierKind.PHONE not in kinds
+
+
 def test_third_party_scan_row_is_tagged_t1_not_self(db, settings):
     # A consented third-party scan must be recorded as tier=t1 / non-self purpose,
     # never mislabelled as an ordinary self-scan (the DB CHECK ties them).

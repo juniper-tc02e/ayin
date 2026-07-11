@@ -127,7 +127,7 @@ services:
       - api
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.10-alpine  # pinned (audit: floating tag) — XFF handling is set explicitly in the Caddyfile
     restart: unless-stopped
     ports:
       - "80:80"

@@ -101,11 +101,15 @@ def eligible_seed_identifiers(
             select(Subject.owner_user_id).where(Subject.id == subject_id)
         ).scalar_one_or_none()
         if owner is not None and owner != requester_user_id:
+            # Only this requester's confirmed handles + the subject's verified
+            # EMAIL anchor (the address the request was sent to — the requester
+            # already knows it). NOT the subject's phone or other verified
+            # challengeable identifiers, which were never part of this consent.
             out = [
                 i for i in out
                 if i.consent_requester_id == requester_user_id
                 or (
-                    i.kind in CHALLENGEABLE_KINDS
+                    i.kind == IdentifierKind.EMAIL
                     and i.verification_state == VerificationState.VERIFIED
                 )
             ]

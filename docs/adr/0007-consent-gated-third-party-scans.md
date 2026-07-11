@@ -160,6 +160,28 @@ that email for a real account; the per-target harassment cap is per-account (pro
 mitigates via invite-only signup); `POST /scans` does no route-layer relationship
 check (the orchestrator consent gate is the real enforcement).
 
+### Second re-audit remediation (2026-06-23)
+
+A follow-up audit of the remediated feature found the first hardening had gaps
+(2 HIGH root issues + mediums), fixed here:
+
+- **Throttle fix didn't hold (HIGH) — fixed.** `--proxy-headers --forwarded-allow-ips='*'`
+  trusted the client-supplied `X-Forwarded-For`, so the per-IP throttle key was
+  attacker-controllable. Caddy now **overwrites** XFF with the real client
+  (`header_up X-Forwarded-For {remote_host}`) and the Caddy image is pinned.
+- **Identifier scope still leaked the anchor (HIGH) — fixed.** The third-party
+  seed filter allowed *any* verified challengeable identifier; narrowed to the
+  verified **EMAIL** only (drops phone / other identifiers never consented to).
+- **Mediums/lows — fixed:** `consent.declined` now audits with a neutral system
+  actor (not the requester) + honours the `screened` guard; the redacted
+  third-party `POST /scans` response returns a fixed `status="accepted"` (a real
+  "held" status would re-reveal a victim-protection match).
+- **New residuals:** a *real account* with multiple verified emails still has all
+  of them anchor-eligible (login-less consent subjects — the common case — have
+  exactly one, so no leak); `GET /consent/grants` returns the subject email to
+  the requester without an audit row; no per-handle confirmation on accept; the
+  throttle is per-worker in-memory (shared Redis store is the upgrade).
+
 ## Verification
 
 `backend/tests/test_consent_gate.py` (8) — gate verdicts. `test_consent_flow.py`

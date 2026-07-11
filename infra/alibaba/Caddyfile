@@ -7,7 +7,13 @@
 
 	# API under /api → FastAPI
 	handle_path /api/* {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			# OVERWRITE (not append) X-Forwarded-For with the real client IP that
+			# Caddy actually saw, discarding any client-supplied X-Forwarded-For.
+			# uvicorn --proxy-headers then reads a single trusted value, so the
+			# per-IP consent throttle can't be spoofed/rotated by a client.
+			header_up X-Forwarded-For {remote_host}
+		}
 	}
 
 	# everything else → Next.js
