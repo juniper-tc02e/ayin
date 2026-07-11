@@ -182,6 +182,23 @@ A follow-up audit of the remediated feature found the first hardening had gaps
   the requester without an audit row; no per-handle confirmation on accept; the
   throttle is per-worker in-memory (shared Redis store is the upgrade).
 
+### Third re-audit + PAUSE (2026-07-11)
+
+A third audit cycle found a **critical** — the scan *refuse* path returned the raw
+gate reason (`no_consent`/`no_verified_anchor`/`subject_excluded`/`rate_limited`)
+verbatim, a subject-status oracle any account could probe (the redaction fix had
+only covered the success path). **Fixed** (commit `d308f50`): third-party
+refusals now return a uniform generic `403 not_authorized`.
+
+It also confirmed the multi-email anchor leak is **HIGH** (not the residual it was
+downgraded to) and that the correct fix is a data-model redesign (a scope join
+table), not a patch. **Decision: PAUSE the audit-patch loop.** After three cycles
+each finding real HIGH+ issues, the remaining work is a deliberate design pass,
+not marathon-tail patching — and the feature is flagged OFF with zero live risk.
+The outstanding items + the join-table design are scoped in
+[`docs/consent-t1-enablement-backlog.md`](../consent-t1-enablement-backlog.md);
+that backlog + a clean re-audit are the gate before `consent_t1_enabled` flips on.
+
 ## Verification
 
 `backend/tests/test_consent_gate.py` (8) — gate verdicts. `test_consent_flow.py`
