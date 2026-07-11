@@ -1,26 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Inter, IBM_Plex_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import "./globals.css";
 
-const fraunces = Fraunces({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
-  axes: ["opsz"],
-  variable: "--font-fraunces",
+  variable: "--font-jakarta",
 });
-const inter = Inter({
+const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "800"],
-  variable: "--font-inter",
-});
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500"],
-  variable: "--font-plex-mono",
+  variable: "--font-jetbrains",
 });
 
 export const metadata: Metadata = {
@@ -64,7 +56,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: "#0b0e14" };
+export const viewport: Viewport = { themeColor: "#0F172A" };
 
 // Site-wide structured data. No PII, no AggregateRating, and no SearchAction —
 // there is no people-search here, and faking one would contradict self-scan-only.
@@ -107,7 +99,7 @@ const APP_LD = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable} ${plexMono.variable}`}>
+    <html lang="en" className={`${plusJakartaSans.variable} ${jetBrainsMono.variable}`}>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_LD) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_LD) }} />

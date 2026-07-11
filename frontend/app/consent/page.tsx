@@ -131,7 +131,7 @@ function ConsentInner() {
       </div>
 
       <div className="card">
-        <p style={{ marginTop: 0, fontSize: "0.9rem", color: "var(--warn)" }}>
+        <p style={{ marginTop: 0, fontSize: "0.9rem", color: "var(--sev-high)" }}>
           ⚠️ Only authorize if you recognize <strong>{ask.requester_email}</strong> and were
           expecting this request. Ayin only reads <strong>publicly available</strong> sources
           — never private accounts — and you can withdraw consent whenever you like. If you
@@ -147,14 +147,14 @@ function ConsentInner() {
           <span>I confirm I am 18 or older and I authorize this scan of my public footprint.</span>
         </label>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <button onClick={accept} disabled={!adult || busy} style={primaryButton}>
+          <button onClick={accept} disabled={!adult || busy} className="btn btn-primary">
             {busy ? "…" : "Authorize this scan"}
           </button>
-          <button onClick={decline} disabled={busy} style={ghostButton}>
+          <button onClick={decline} disabled={busy} className="btn btn-ghost">
             Decline
           </button>
         </div>
-        {actionError && <p style={{ color: "var(--down)", marginBottom: 0 }}>{actionError}</p>}
+        {actionError && <p style={{ color: "var(--sev-critical)", marginBottom: 0 }}>{actionError}</p>}
         <p className="dim" style={{ marginTop: "0.75rem", marginBottom: 0, fontSize: "0.8rem" }}>
           <a
             href="mailto:abuse@superayin.com?subject=Consent%20request%20abuse%20report"
@@ -175,22 +175,3 @@ export default function ConsentPage() {
     </Suspense>
   );
 }
-
-const primaryButton: React.CSSProperties = {
-  padding: "0.55rem 1.2rem",
-  background: "var(--accent)",
-  color: "#06222e",
-  border: "none",
-  borderRadius: 8,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const ghostButton: React.CSSProperties = {
-  padding: "0.55rem 1.2rem",
-  background: "transparent",
-  color: "var(--text-dim)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  cursor: "pointer",
-};

@@ -5,52 +5,59 @@
    touching a single component contract.
    ============================================================ */
 :root {
-  /* ---- Ink stack (surfaces) — warm slate-navy, calmer than clinical grey ---- */
-  --ink-900: #0b0e14;   /* page background */
-  --ink-800: #11151d;   /* raised section band */
-  --ink-700: #161b25;   /* card surface (== legacy --surface) */
-  --ink-600: #1d2430;   /* elevated card / nested panel */
-  --ink-550: #232b38;   /* input fill, code well */
-  --line:        #28303d;   /* hairline border */
-  --line-strong: #364150;   /* focused input, active card edge */
+  /* ---- Ink stack (surfaces) — Sentinel: bank-grade navy, calm and credible ---- */
+  --ink-950: #0A0F1E;   /* deepest band */
+  --ink-900: #0F172A;   /* page background */
+  --ink-800: #131D33;   /* raised section band */
+  --ink-700: #16213A;   /* card surface (== legacy --surface) */
+  --ink-600: #1C2A47;   /* elevated card / nested panel */
+  --ink-550: #20304F;   /* input fill, code well */
+  --line:        #263453;   /* hairline border */
+  --line-strong: #35476E;   /* focused input, active card edge */
 
   /* ---- Text ---- */
-  --fg:       #eef2f7;  /* primary */
-  --fg-dim:   #9aa6b6;  /* secondary (AA on ink-700/900) */
-  --fg-faint: #8b96a7;  /* tertiary / captions — AA (>= 4.5:1) on ink surfaces at --fs-xs */
-  --text-mute: #8b96a7; /* alias spelling some grafts reference */
+  --fg:       #F1F5F9;  /* primary */
+  --fg-dim:   #97A6BC;  /* secondary (AA on ink-700/900) */
+  --fg-faint: #8494AC;  /* tertiary / captions — AA (>= 4.5:1) on ink surfaces at --fs-xs */
+  --text-mute: #8494AC; /* alias spelling some grafts reference */
 
-  /* ---- Brand: the iris. Cyan lens-light -> indigo. ---- */
-  --iris-400:  #6fd2ff;  /* bright accent: links, focus, hover */
-  --iris-500:  #3ba9f0;  /* primary brand: CTA fill */
-  --iris-600:  #2b7fd4;  /* pressed */
-  --iris-glow: rgba(111, 210, 255, 0.20); /* focus ring + hero aura */
-  --indigo-500:#7c6cff;  /* secondary brand / gradient end */
-  --on-iris:    #04121d;  /* ink text on iris-filled CTAs */
+  /* ---- Brand: trust blue. Calm, enterprise, credible. ---- */
+  --iris-400:  #60A5FA;  /* bright accent: links, focus, hover */
+  --iris-500:  #3B82F6;  /* primary brand blue */
+  --iris-600:  #2563EB;  /* pressed */
+  --iris-glow: rgba(59, 130, 246, 0.22); /* focus ring + hero aura */
+  --indigo-500:#1D4ED8;  /* secondary brand / gradient end */
+  --on-iris:    #051226;  /* ink text on iris-filled surfaces */
+
+  /* ---- Conversion CTA — the ONLY green. Reserved for primary actions. ---- */
+  --cta-400: #4ADE80;  /* CTA hover */
+  --cta-500: #22C55E;  /* CTA fill */
+  --cta-600: #16A34A;  /* CTA pressed */
+  --on-cta:  #04120A;  /* ink text on CTA fills */
 
   /* ---- Sensitivity scale — CALM. Maps 1:1 to FindingsList tiers &
          ScorePanel bands. Critical = muted plum-rose, never fire-red. ---- */
-  --sev-low:      #5fb89a;  /* muted teal — minor / handled */
-  --sev-medium:   #5aa9e6;  /* brand blue — worth knowing (NOT alarm-yellow) */
-  --sev-high:     #e0a55a;  /* warm amber-clay — take a look */
-  --sev-critical: #c77d8f;  /* muted plum-rose — do this first (earth-tone) */
-  --sev-low-bg:      rgba(95, 184, 154, 0.10);
-  --sev-medium-bg:   rgba(90, 169, 230, 0.10);
-  --sev-high-bg:     rgba(224, 165, 90, 0.10);
-  --sev-critical-bg: rgba(199, 125, 143, 0.10);
+  --sev-low:      #57B896;  /* muted teal — minor / handled */
+  --sev-medium:   #5E9EE6;  /* calm blue — worth knowing (NOT alarm-yellow) */
+  --sev-high:     #D9A45B;  /* amber-clay — take a look */
+  --sev-critical: #C27D92;  /* plum-rose — do this first (earth-tone, calm) */
+  --sev-low-bg:      rgba(87, 184, 150, 0.10);
+  --sev-medium-bg:   rgba(94, 158, 230, 0.10);
+  --sev-high-bg:     rgba(217, 164, 91, 0.10);
+  --sev-critical-bg: rgba(194, 125, 146, 0.10);
 
   /* ---- Functional / status (operational, distinct from findings) ---- */
-  --ok:   #5fb89a;   /* a quiet footprint is a good result */
-  --info: #5aa9e6;
-  --status-down: #df7d6e;  /* infra-down only; never a finding color */
+  --ok:   #57B896;   /* a quiet footprint is a good result */
+  --info: #5E9EE6;
+  --status-down: #D9806E;  /* infra-down only; never a finding color */
 
   /* ---- Typography (families injected by next/font in layout.tsx) ---- */
-  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --font-sans:    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono:    var(--font-plex-mono), ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans:    var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    var(--font-jetbrains), ui-monospace, "SF Mono", "Cascadia Code", monospace;
 
   /* Fluid type scale (1.25). Headings = display; body/UI = sans; facts = mono. */
-  --fs-display: clamp(2.75rem, 6vw, 5rem);     /* hero H1 */
+  --fs-display: clamp(2.5rem, 5.5vw, 4.25rem); /* hero H1 */
   --fs-h1:      clamp(2rem, 4vw, 3rem);        /* section titles */
   --fs-h2:      clamp(1.5rem, 2.5vw, 2rem);    /* sub-sections */
   --fs-h3:      1.15rem;                        /* card titles */
@@ -103,12 +110,18 @@
 /* Optional LIGHT variant — used by the OG image route + a deferred,
    non-default [data-theme=light] hook. NOT the runtime default. */
 :root[data-theme="light"] {
-  --ink-900:#f6f8fb; --ink-800:#ffffff; --ink-700:#ffffff; --ink-600:#f1f4f9; --ink-550:#eef2f8;
-  --line:#e2e8f1; --line-strong:#cbd5e3;
-  --fg:#0e1722; --fg-dim:#51607a; --fg-faint:#8694ab; --text-mute:#8694ab;
-  --iris-400:#2b8fe0; --iris-500:#1f7fd1; --iris-600:#155fa6;
-  --sev-low:#2f8f72; --sev-medium:#2f7fc4; --sev-high:#b5772a; --sev-critical:#a85070;
-  --ok:#2f8f72; --status-down:#c25a48;
+  --ink-950:#eef1f6; --ink-900:#F8FAFC; --ink-800:#FFFFFF; --ink-700:#FFFFFF; --ink-600:#F1F5F9; --ink-550:#EEF2F7;
+  --line:#DEE5EF; --line-strong:#C3CEDE;
+  --fg:#0F172A; --fg-dim:#4A5A74; --fg-faint:#66788F; --text-mute:#66788F;
+  --iris-400:#2563EB; --iris-500:#1D4ED8; --iris-600:#1E40AF;
+  /* light CTA darkened so white label meets 4.5:1 (16A34A was 3.3:1) */
+  --cta-400:#16A34A; --cta-500:#15803D; --cta-600:#166534; --on-cta:#FFFFFF;
+  --sev-low:#25836A; --sev-medium:#2568B8; --sev-high:#92601D; --sev-critical:#A14E6C;
+  --sev-low-bg: rgba(37, 131, 106, 0.08);
+  --sev-medium-bg: rgba(37, 104, 184, 0.08);
+  --sev-high-bg: rgba(166, 106, 33, 0.08);
+  --sev-critical-bg: rgba(161, 78, 108, 0.08);
+  --ok:#25836A; --info:#2568B8; --status-down:#c25a48;
 }
 
 /* ---- Global reduced-motion gate (decorative motion off) ---- */
@@ -132,9 +145,10 @@ html, body {
 }
 body { font-feature-settings: "cv05" 1, "tnum" 1; }
 h1, h2, h3, h4 {
-  font-family: var(--font-display); letter-spacing: -0.015em;
-  line-height: 1.1; margin: 0 0 var(--sp-4);
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em;
+  line-height: 1.08; margin: 0 0 var(--sp-4);
 }
+h1 { font-weight: 800; }
 h3 { font-family: var(--font-sans); font-weight: 650; font-size: var(--fs-h3); letter-spacing: -0.005em; }
 a { color: var(--iris-400); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -183,17 +197,22 @@ main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages driv
 /* ---- Buttons ---- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
-  min-height: 44px; padding: 0 var(--sp-5); border-radius: var(--r-pill);
-  border: 1px solid transparent; font: inherit; font-weight: 600; cursor: pointer;
+  min-height: 44px; padding: 0 var(--sp-5); border-radius: var(--r-md);
+  border: 1px solid transparent; font: inherit; font-weight: 650; cursor: pointer;
   transition: transform var(--dur-1) var(--ease-out), background var(--dur-1), box-shadow var(--dur-1);
   text-decoration: none;
 }
 .btn:active { transform: translateY(1px) scale(.99); }
 .btn:hover { text-decoration: none; }
-.btn-primary { background: var(--iris-500); color: var(--on-iris); }
-.btn-primary:hover { background: var(--iris-400); box-shadow: var(--glow-aura); }
+/* Primary = conversion CTA. Emerald is the ONLY green, reserved for this action. */
+.btn-primary { background: var(--cta-500); color: var(--on-cta); }
+.btn-primary:hover { background: var(--cta-400); transform: translateY(-1px); box-shadow: var(--e-2); }
+.btn-primary:active { background: var(--cta-600); transform: translateY(1px) scale(.99); }
 .btn-ghost { background: transparent; color: var(--fg); border-color: var(--line-strong); }
 .btn-ghost:hover { background: var(--ink-600); }
+/* Secondary / product actions — trust blue. Conversion CTAs stay emerald. */
+.btn-blue { background: var(--iris-500); color: #fff; }
+.btn-blue:hover { background: var(--iris-400); }
 .btn-lg { min-height: 52px; padding: 0 var(--sp-6); font-size: 1.05rem; }
 
 /* ---- Pills / badges ---- */
@@ -215,6 +234,18 @@ main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages driv
 
 /* ---- Monospace truth texture (provenance facts) ---- */
 .meta { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--fg-dim); letter-spacing: 0; }
+
+/* ---- Trust bar: row of small mono guarantees, hairline-separated, wraps on mobile ---- */
+.trust-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3);
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--fg-dim);
+  letter-spacing: 0.02em;
+}
+.trust-bar > span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.trust-bar > span:not(:last-child)::after {
+  content: ""; display: inline-block; width: 1px; height: 12px;
+  background: var(--line-strong); margin-left: var(--sp-3);
+}
 
 /* ---- Inputs / fields ---- */
 .field { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-4); }
@@ -274,11 +305,11 @@ main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages driv
 @media (max-width: 760px) { .sticky-cta.show { display: block; } }
 
 /* ---- Iris mark (logo) focus gesture + header hover ---- */
-.iris--focus .iris-ring { transform-origin: 24px 22px; animation: irisFocus var(--dur-4) var(--ease-iris) both; }
+.iris--focus .iris-ring { transform-origin: 26px 21px; animation: irisFocus var(--dur-4) var(--ease-iris) both; }
 .iris--focus .iris-pupil { animation: pupilGlow var(--dur-4) var(--ease-iris) both; }
-@keyframes irisFocus { from { transform: scale(1.35); opacity: 0; } to { transform: scale(1); opacity: .55; } }
+@keyframes irisFocus { from { transform: scale(1.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes pupilGlow { from { opacity: .4; } to { opacity: 1; } }
-.site-header .iris-link:hover .iris-ring { transition: transform var(--dur-3) var(--ease-iris); transform: rotate(8deg); }
+.site-header .iris-link:hover .iris-ring { transition: transform var(--dur-3) var(--ease-iris); transform: rotate(-6deg); }
 
 /* ============================================================
    Preserved legacy helpers — used by existing components.

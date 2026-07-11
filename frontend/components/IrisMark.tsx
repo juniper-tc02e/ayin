@@ -1,9 +1,11 @@
 /**
- * The Ayin mark: an aperture-iris — a lens, not a watching eyeball (no lashes,
- * no crosshair). A relaxed almond with an open lower curve + an upper-left
- * catch-light (the "kindness cue" for the survivor persona) so it reads as an
- * eye that is YOURS. Uses currentColor so it themes for free; the pupil is a
- * cyan->indigo gradient. Single source for nav, hero, footer, and favicon.
+ * The Ayin mark: the ʿayin glance — a monogram of the Hebrew letter ע ("ayin",
+ * literally "eye"). The letter's long arm sweeps from upper-right down through
+ * the baseline foot; the second arm is flattened into a lower lid; the pupil
+ * rests free in the counter. Reads as a calm, heavy-lidded glance — an eye
+ * that is YOURS looking back, never a surveillance eyeball (no lashes, no
+ * crosshair). Strokes use currentColor so it themes for free; the pupil is a
+ * trust-blue gradient. Single source for nav, hero, footer, and favicon.
  */
 export default function IrisMark({
   size = 32,
@@ -31,42 +33,25 @@ export default function IrisMark({
       className={animate ? "iris iris--focus" : "iris"}
     >
       <defs>
-        <radialGradient id={gid} cx="42%" cy="38%" r="70%">
+        <radialGradient id={gid} cx="38%" cy="34%" r="75%">
           <stop offset="0%" stopColor="var(--iris-400)" />
           <stop offset="100%" stopColor="var(--indigo-500)" />
         </radialGradient>
       </defs>
-      {/* relaxed almond — open lower curve, never a hard slit */}
-      <path
-        d="M3 25C9 14 16 10 24 10s15 4 21 15c-6 9-13 12-21 12S9 33 3 25Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-        opacity=".9"
-      />
-      {/* iris ring */}
-      <circle
+      {/* the ע long arm: upper-right sweep through the baseline foot */}
+      <g
         className="iris-ring"
-        cx="24"
-        cy="22"
-        r="9.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.4"
-        opacity=".55"
-      />
-      {/* pupil = the lens light */}
-      <circle className="iris-pupil" cx="24" cy="22" r="5" fill={`url(#${gid})`} />
-      {/* catch-light: the kindness cue */}
-      <path
-        d="M20 18.5a5 5 0 0 1 3-2.2"
-        fill="none"
-        stroke="var(--iris-400)"
-        strokeWidth="1.2"
+        strokeWidth="3.6"
         strokeLinecap="round"
-        opacity=".9"
-      />
+      >
+        <path d="M40 12 C36 19 31 25 25.5 28.8 C20.5 32.5 15 35.4 9.5 36.2" />
+        {/* the second arm, flattened into the lower lid */}
+        <path d="M8 20 C12 24 17.5 27 24 28.9" opacity=".92" />
+      </g>
+      {/* pupil = the lens light, free in the counter */}
+      <circle className="iris-pupil" cx="26" cy="20.6" r="4.3" fill={`url(#${gid})`} />
     </svg>
   );
 }

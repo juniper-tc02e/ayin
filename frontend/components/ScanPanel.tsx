@@ -158,8 +158,8 @@ export default function ScanPanel() {
           onClick={startScan}
           disabled={busy}
           style={{
-            padding: "0.5rem 1.1rem", background: "var(--accent)", color: "#06222e",
-            border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer",
+            padding: "0.5rem 1.1rem", background: "var(--cta-500)", color: "var(--on-cta)",
+            border: "none", borderRadius: 8, fontWeight: 650, cursor: "pointer",
           }}
         >
           {busy ? "…" : scans.length ? "Re-scan" : "Run my first scan"}
@@ -228,7 +228,7 @@ export default function ScanPanel() {
                   href={`/report/${selectedScan.id}`}
                   style={{
                     display: "inline-block", padding: "0.5rem 1rem",
-                    background: "var(--accent)", color: "#06222e", borderRadius: 8,
+                    background: "var(--accent)", color: "var(--on-iris)", borderRadius: 8,
                     fontWeight: 600, textDecoration: "none",
                   }}
                 >

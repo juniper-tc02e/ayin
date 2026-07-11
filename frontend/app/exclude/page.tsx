@@ -39,29 +39,18 @@ export default function ExcludePage() {
         <div className="card"><p style={{ margin: 0 }}>{message}</p></div>
       ) : (
         <form onSubmit={submit} className="card" style={{ display: "grid", gap: "0.75rem" }}>
-          <label>
-            Email address
+          <div className="field">
+            <label htmlFor="exclude-email">Email address</label>
             <input
+              id="exclude-email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{
-                display: "block", width: "100%", marginTop: "0.25rem",
-                padding: "0.5rem 0.75rem", background: "var(--bg)", color: "var(--text)",
-                border: "1px solid var(--border)", borderRadius: 8,
-              }}
             />
-          </label>
-          {error && <p style={{ color: "var(--down)", margin: 0 }}>{error}</p>}
-          <button
-            type="submit"
-            disabled={busy}
-            style={{
-              padding: "0.6rem 1rem", background: "var(--accent)", color: "#06222e",
-              border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer",
-            }}
-          >
+          </div>
+          {error && <p style={{ color: "var(--sev-critical)", margin: 0 }}>{error}</p>}
+          <button type="submit" disabled={busy} className="btn btn-primary">
             {busy ? "…" : "Send confirmation link"}
           </button>
           <p className="dim" style={{ margin: 0, fontSize: "0.8rem" }}>

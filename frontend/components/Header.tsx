@@ -87,7 +87,7 @@ export default function Header() {
                 Sign in
               </Link>
               <Link href="/signup" className="btn btn-primary" style={{ minHeight: 40 }}>
-                Run free scan
+                Run my free scan
               </Link>
             </>
           )}
@@ -115,8 +115,8 @@ export default function Header() {
             ) : (
               <>
                 <Link href="/login">Sign in</Link>
-                <Link href="/signup" style={{ color: "var(--iris-400)", fontWeight: 600 }}>
-                  Run free scan →
+                <Link href="/signup" style={{ color: "var(--cta-500)", fontWeight: 600 }}>
+                  Run my free scan →
                 </Link>
               </>
             )}

@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Privacy self-exposure scanner. Self-scan only.",
     start_url: "/",
     display: "standalone",
-    theme_color: "#0b0e14",
-    background_color: "#0b0e14",
+    theme_color: "#0F172A",
+    background_color: "#0F172A",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" },

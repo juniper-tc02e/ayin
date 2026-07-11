@@ -10,7 +10,15 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <main style={{ maxWidth: 440 }}>
+    <main
+      style={{
+        maxWidth: 440,
+        background: "var(--ink-800)",
+        border: "1px solid var(--line)",
+        borderRadius: "var(--r-lg, 16px)",
+        padding: "var(--sp-6, 2.5rem) var(--sp-5)",
+      }}
+    >
       <div style={{ textAlign: "center", marginBottom: "var(--sp-5)" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "var(--sp-3)" }}>
           <IrisMark size={44} />

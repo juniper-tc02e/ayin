@@ -72,7 +72,7 @@ export default function IntentCTA({
 const ctaStyle: React.CSSProperties = {
   padding: "0.5rem 1rem",
   background: "var(--accent)",
-  color: "#06222e",
+  color: "var(--on-iris)",
   border: "none",
   borderRadius: 8,
   fontWeight: 600,

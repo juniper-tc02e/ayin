@@ -42,11 +42,11 @@ export default function TosGate() {
         onClick={accept}
         style={{
           padding: "0.5rem 1rem",
-          background: "var(--accent)",
-          color: "#06222e",
+          background: "var(--cta-500)",
+          color: "var(--on-cta)",
           border: "none",
           borderRadius: 8,
-          fontWeight: 600,
+          fontWeight: 650,
           cursor: "pointer",
         }}
       >

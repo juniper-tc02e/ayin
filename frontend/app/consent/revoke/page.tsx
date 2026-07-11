@@ -63,7 +63,7 @@ function RevokeInner() {
             Cancel
           </Link>
         </div>
-        {message && <p style={{ color: "var(--down)", marginBottom: 0 }}>{message}</p>}
+        {message && <p style={{ color: "var(--sev-critical)", marginBottom: 0 }}>{message}</p>}
       </div>
     </main>
   );
@@ -79,10 +79,10 @@ export default function RevokePage() {
 
 const dangerButton: React.CSSProperties = {
   padding: "0.55rem 1.2rem",
-  background: "var(--down)",
+  background: "var(--sev-critical)",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
-  fontWeight: 600,
+  borderRadius: "var(--r-md)",
+  fontWeight: 650,
   cursor: "pointer",
 };

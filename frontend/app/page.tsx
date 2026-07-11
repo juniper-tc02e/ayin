@@ -57,21 +57,74 @@ const HOW = [
   },
   {
     n: "02",
-    t: "Ayin looks — across the open internet.",
+    t: "We scan public sources.",
     d: "Breach indexes, data-broker listings, and your public web footprint. Publicly available only: nothing behind a login, nothing bought from a leak, nothing about minors.",
   },
   {
     n: "03",
-    t: "You get a plan, not a panic.",
+    t: "You get a plan.",
     d: "A 0–100 Exposure Score, every finding with its source and capture date, and concrete steps to remove or lock down what's exposed.",
   },
 ];
 
-const TRUST = [
-  "Sources, not assertions",
-  "Publicly available data only",
-  "Encrypted vault + short retention",
-  "Every scan audited",
+const PROOF = [
+  { t: "0–100 scored exposure", d: "One clear number for how exploitable your data is — never a judgment of you." },
+  { t: "Every finding sourced", d: "Source, capture date, and confidence on every line. No mystery data, ever." },
+  { t: "Self-scan only, by design", d: "You verify what you own before anything runs. No lookup path for anyone else." },
+];
+
+const FINDINGS = [
+  {
+    t: "Breach exposure",
+    sev: "Sensitive",
+    color: "var(--sev-critical)",
+    d: "Credential and account exposure in known breach indexes — status only, never plaintext.",
+  },
+  {
+    t: "Data-broker listings",
+    sev: "High",
+    color: "var(--sev-high)",
+    d: "Home address, phone, and relatives listed for sale — each with a removal path.",
+  },
+  {
+    t: "Public footprint",
+    sev: "Medium",
+    color: "var(--sev-medium)",
+    d: "Profiles and pages that surface your identifiers in open web search.",
+  },
+  {
+    t: "Username reuse",
+    sev: "Low",
+    color: "var(--sev-low)",
+    d: "The same handle across platforms, which can link otherwise-separate identities.",
+  },
+];
+
+const SCORE_BANDS = [
+  { label: "0–29", word: "Low", color: "var(--sev-low)", d: "Little exposed. Keep the habits that got you here." },
+  // Boundaries mirror ScoreRing.bandColor / scoring.engine.verdict — do not drift.
+  { label: "30–54", word: "Medium", color: "var(--sev-medium)", d: "Some exposure. A short list of fixes moves the needle." },
+  { label: "55–79", word: "High", color: "var(--sev-high)", d: "Meaningful exposure. We lead with the three things to do first." },
+  { label: "80–100", word: "Sensitive", color: "var(--sev-critical)", d: "Significant exposure — still a plan, never a wall of red." },
+];
+
+const NEVER = [
+  {
+    t: "Scan anyone but you",
+    d: "No lookup path for a third party exists in this product. Self-scan only, enforced at the gate.",
+  },
+  {
+    t: "Sell your data",
+    d: "We never build a sellable index and never sell subject data — not to advertisers, not to anyone.",
+  },
+  {
+    t: "Keep a permanent dossier",
+    d: "We store findings and a score, not raw records, on a short retention timer.",
+  },
+  {
+    t: "Score you as a person",
+    d: "The Exposure Score measures data exploitability, never character, credit, or employability.",
+  },
 ];
 
 const SAFETY = [
@@ -97,18 +150,6 @@ const SAFETY = [
   },
 ];
 
-const WHY = [
-  { t: "You hold the lens", d: "Self-scan only. We never look someone up for you." },
-  {
-    t: "Calm, not alarmist",
-    d: "A plan, not a wall of red. Most tools profit from your fear; we profit from your control.",
-  },
-  {
-    t: "Privacy by construction",
-    d: "Short retention, crypto-shred, full audit. We never build a sellable index and never sell your data.",
-  },
-];
-
 export default function LandingPage() {
   return (
     <main className="landing">
@@ -127,29 +168,29 @@ export default function LandingPage() {
           data-hero
         >
           <div>
-            <p className="eyebrow">OSINT SELF-EXPOSURE SCANNER · QWEN AI HACKATHON · TRACK 4</p>
+            <p className="eyebrow">PRIVACY SELF-SCAN</p>
             <h1 id="hero-h" style={{ fontSize: "var(--fs-display)", margin: "0 0 var(--sp-4)" }}>
-              See what the internet knows about you.
-              <br />
-              <span style={{ color: "var(--iris-400)" }}>Then make it forget.</span>
+              Your exposure, measured.
             </h1>
             <p className="lead">
-              Ayin is a free self-scan that shows you your own public exposure — leaked-credential
-              alerts, data-broker listings, your public footprint — scored 0 to 100, with a clear
-              plan to shrink it. You scan only what you&apos;ve verified is yours.{" "}
-              <strong style={{ color: "var(--fg)" }}>No one can look you up here.</strong>
+              See what the open internet knows about identifiers you control — breach exposure,
+              data-broker listings, your public footprint — scored 0 to 100, with a clear plan to
+              shrink it. <strong style={{ color: "var(--fg)" }}>Self-scan only: no one can look you up here.</strong>
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-3)", marginTop: "var(--sp-6)" }}>
               <Link href="/signup" className="btn btn-primary btn-lg">
-                Run my free self-scan →
+                Run my free scan
               </Link>
-              <Link href="#sample" className="btn btn-ghost btn-lg">
-                See a sample report
+              <Link href="#how" className="btn btn-ghost btn-lg">
+                How it works
               </Link>
             </div>
-            <p className="meta" style={{ marginTop: "var(--sp-4)", color: "var(--fg-faint)" }}>
-              Self-scan only · no card required · exclude-me &amp; delete-everything built in
-            </p>
+            <ul className="trust-bar" style={{ marginTop: "var(--sp-5)" }}>
+              <li>Self-scan only</li>
+              <li>Sources cited</li>
+              <li>Delete everything</li>
+              <li>Free</li>
+            </ul>
           </div>
           <div style={{ display: "flex", justifyContent: "center" }} aria-hidden>
             <div style={{ position: "relative", filter: "drop-shadow(var(--glow-aura))" }}>
@@ -160,175 +201,139 @@ export default function LandingPage() {
         <span id="hero-sentinel" aria-hidden />
       </section>
 
-      {/* S2 — Asymmetry-flip band */}
-      <section aria-labelledby="flip-h" className="section section--band">
-        <div className="container" style={{ textAlign: "center", maxWidth: "var(--mw-read)" }}>
-          <h2 id="flip-h" style={{ fontSize: "var(--fs-h1)" }} data-reveal>
-            Most tools watch people. Ayin hands you the lens.
+      {/* S2 — Proof band */}
+      <section aria-labelledby="proof-h" className="section section--band">
+        <div className="container">
+          <h2
+            id="proof-h"
+            style={{
+              position: "absolute",
+              width: 1,
+              height: 1,
+              padding: 0,
+              margin: -1,
+              overflow: "hidden",
+              clip: "rect(0,0,0,0)",
+              whiteSpace: "nowrap",
+              border: 0,
+            }}
+          >
+            What Ayin guarantees
           </h2>
-          <p className="lead" style={{ margin: "var(--sp-4) auto 0" }} data-reveal>
-            The person being looked at is the one doing the looking. We only ever scan you — never
-            anyone else.
-          </p>
+          <div className="grid grid-3">
+            {PROOF.map((p) => (
+              <div key={p.t} className="card" data-reveal>
+                <h3 style={{ marginTop: 0 }}>{p.t}</h3>
+                <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{p.d}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* S3 — Trust strip */}
-      <section aria-label="What you can trust" className="container" style={{ paddingBlock: "var(--sp-6)" }}>
-        <ul
-          className="meta"
-          style={{
-            listStyle: "none",
-            margin: 0,
-            padding: 0,
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "var(--sp-5)",
-            justifyContent: "center",
-            alignItems: "center",
-            color: "var(--fg-dim)",
-          }}
-        >
-          {TRUST.map((t, i) => (
-            <li key={t} style={{ display: "flex", gap: "var(--sp-3)", alignItems: "center" }}>
-              <span>{t}</span>
-              {i < TRUST.length - 1 && <span aria-hidden style={{ color: "var(--line-strong)" }}>·</span>}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* S4 — How it works */}
+      {/* S3 — How it works */}
       <section id="how" aria-labelledby="how-h" className="section">
         <div className="container">
           <p className="eyebrow">HOW IT WORKS</p>
           <h2 id="how-h" style={{ fontSize: "var(--fs-h1)", maxWidth: "20ch" }} data-reveal>
-            From &ldquo;what&apos;s out there?&rdquo; to &ldquo;here&apos;s the plan.&rdquo; In one scan.
+            Verify it&apos;s yours. We scan. You get a plan.
           </h2>
-          <div className="grid grid-3" style={{ marginTop: "var(--sp-7)" }}>
+          <div className="trail" style={{ marginTop: "var(--sp-7)", maxWidth: "var(--mw-read)" }}>
             {HOW.map((s) => (
-              <div key={s.n} className="card" data-reveal>
-                <span className="meta" style={{ fontSize: "1.4rem", color: "var(--iris-400)" }}>{s.n}</span>
-                <h3 style={{ marginTop: "var(--sp-3)" }}>{s.t}</h3>
+              <div key={s.n} className="trail-node" data-reveal>
+                <span className="meta" style={{ color: "var(--iris-400)" }}>{s.n}</span>
+                <h3 style={{ margin: "var(--sp-1) 0 var(--sp-1)" }}>{s.t}</h3>
                 <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{s.d}</p>
               </div>
             ))}
           </div>
-          <p className="meta" style={{ marginTop: "var(--sp-5)", color: "var(--fg-faint)" }}>
-            Full pipeline: INPUT → DISCOVERY → RESOLUTION → ENRICHMENT → SCORING → REPORT → REMEDIATION → MONITORING
-          </p>
         </div>
       </section>
 
-      {/* S5 — The agent / Qwen */}
-      <section id="agent" aria-labelledby="agent-h" className="section section--band">
-        <div
-          className="container"
-          style={{ display: "grid", gap: "var(--sp-7)", gridTemplateColumns: "1fr 1fr", alignItems: "center" }}
-          data-cols
-        >
-          <div>
-            <p className="eyebrow">AUTOPILOT AGENT · POWERED BY QWEN</p>
-            <h2 id="agent-h" style={{ fontSize: "var(--fs-h1)" }} data-reveal>
-              An agent that explains, never accuses.
-            </h2>
-            <p className="lead" data-reveal>
-              Ayin&apos;s report is written by an autonomous agent powered by Qwen. It reads only
-              your scan&apos;s real, sourced findings and explains in plain language what each one
-              means and what to do first — every sentence cites the finding it rests on. It
-              summarizes what&apos;s there; it never invents a finding and never decides for you.
-            </p>
-            <span className="pill pill-iris" style={{ marginTop: "var(--sp-4)" }}>
-              Cited or silent — the agent only narrates what it actually retrieved.
-            </span>
-          </div>
-          {/* faux NarrativePanel mirroring the real component (sample text, exposed to AT) */}
-          <div className="card card--raised" data-reveal>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "var(--sp-3)" }}>
-              <h3 style={{ margin: 0 }}>What this means</h3>
-              <span
-                className="pill"
-                style={{ color: "var(--iris-400)", borderColor: "color-mix(in srgb, var(--iris-400) 40%, transparent)" }}
-              >
-                ✦ written by Qwen
-              </span>
-            </div>
-            <p style={{ margin: "var(--sp-3) 0 0" }}>
-              One of your emails appears in a known breach, so the password tied to it should be
-              considered public. <FauxCite n={1} />
-            </p>
-            <p style={{ margin: "var(--sp-2) 0 0" }}>
-              Two data brokers list a home address for you — both offer a removal path. <FauxCite n={2} />
-            </p>
-            <p className="eyebrow" style={{ margin: "var(--sp-4) 0 var(--sp-2)" }}>Where to start</p>
-            <ol style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "var(--fs-sm)" }}>
-              <li>Rotate that password and turn on two-factor. <FauxCite n={1} /></li>
-              <li>Submit the two broker opt-outs. <FauxCite n={2} /></li>
-            </ol>
-            <p className="meta" style={{ margin: "var(--sp-4) 0 0", color: "var(--fg-faint)" }}>
-              Every statement cites the finding it rests on · your answer decides.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* S6 — Before / After (sample) */}
-      <section id="sample" aria-labelledby="sample-h" className="section">
+      {/* S4 — What we find */}
+      <section id="findings" aria-labelledby="findings-h" className="section section--band">
         <div className="container">
-          <h2 id="sample-h" style={{ fontSize: "var(--fs-h1)" }} data-reveal>
-            This is what your report looks like.
-          </h2>
-          <p className="lead" data-reveal>
-            Calm by design. We lead with the fix, never a wall of red — even a high score comes with
-            the three things to do first.
-          </p>
-          <div
-            className="grid"
-            style={{ gridTemplateColumns: "1.2fr 0.8fr", marginTop: "var(--sp-6)", alignItems: "center" }}
-            data-cols
-          >
-            <div className="card card--raised" data-reveal>
-              <div style={{ display: "flex", gap: "var(--sp-5)", alignItems: "center", flexWrap: "wrap" }}>
-                <ScoreRing value={72} size={132} label="Exposure" sublabel="before fixes" animate={false} />
-                <div style={{ flex: 1, minWidth: 180 }}>
-                  <SampleRow word="Sensitive" color="var(--sev-critical)" text="Email in a known breach" />
-                  <SampleRow word="High" color="var(--sev-high)" text="Home address on 2 data brokers" />
-                  <SampleRow word="Medium" color="var(--sev-medium)" text="Public profile links your handle" />
-                  <p className="meta" style={{ margin: "var(--sp-3) 0 0", color: "var(--fg-faint)" }}>
-                    source · confidence · captured — on every finding
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "grid", gap: "var(--sp-3)" }}>
-              <div className="card" data-reveal style={{ marginTop: 0 }}>
-                <span className="eyebrow" style={{ margin: 0 }}>Before</span>
-                <p style={{ margin: "var(--sp-1) 0 0", fontWeight: 600 }}>Exposure 72 · 9 things exposed</p>
-              </div>
-              <div className="card" data-reveal style={{ marginTop: 0, borderColor: "color-mix(in srgb, var(--sev-low) 45%, var(--line))" }}>
-                <span className="eyebrow" style={{ margin: 0, color: "var(--sev-low)" }}>After your fixes</span>
-                <p style={{ margin: "var(--sp-1) 0 0", fontWeight: 600 }}>Exposure 31 · plan in motion</p>
-              </div>
-              <Link href="/signup" className="btn btn-primary" style={{ marginTop: "var(--sp-1)" }}>
-                Run yours →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* S7 — Safety & control */}
-      <section id="safety" aria-labelledby="safety-h" className="section section--band">
-        <div className="container">
-          <p className="eyebrow">BUILT TO BE TRUSTED</p>
-          <h2 id="safety-h" style={{ fontSize: "var(--fs-h1)", maxWidth: "22ch" }} data-reveal>
-            The controls that protect you are the first thing we built.
+          <p className="eyebrow">WHAT WE FIND</p>
+          <h2 id="findings-h" style={{ fontSize: "var(--fs-h1)", maxWidth: "22ch" }} data-reveal>
+            Four categories of exposure, each with a source.
           </h2>
           <div className="grid grid-2" style={{ marginTop: "var(--sp-7)" }}>
+            {FINDINGS.map((f) => (
+              <div key={f.t} className="card" data-reveal>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>
+                  <span className="sev-dot" style={{ background: f.color }} />
+                  <span className="meta" style={{ color: f.color }}>{f.sev}</span>
+                </div>
+                <h3 style={{ margin: "var(--sp-2) 0 var(--sp-1)" }}>{f.t}</h3>
+                <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{f.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* S5 — The score */}
+      <section id="score" aria-labelledby="score-h" className="section">
+        <div
+          className="container"
+          style={{ display: "grid", gap: "var(--sp-7)", gridTemplateColumns: "0.8fr 1.2fr", alignItems: "center" }}
+          data-cols
+        >
+          <div style={{ display: "flex", justifyContent: "center" }} data-reveal aria-hidden>
+            <ScoreRing value={52} size={200} label="Sample Exposure" sublabel="0–100" animate={false} />
+          </div>
+          <div>
+            <p className="eyebrow">THE SCORE</p>
+            <h2 id="score-h" style={{ fontSize: "var(--fs-h1)" }} data-reveal>
+              One number. Never a judgment of you.
+            </h2>
+            <p className="lead" data-reveal>
+              The Exposure Score measures how exposed and exploitable your data is — not your
+              character, creditworthiness, or employability. It can&apos;t be used for hiring,
+              tenant, credit, or insurance decisions.
+            </p>
+            <div style={{ display: "grid", gap: "var(--sp-2)", marginTop: "var(--sp-5)" }} data-reveal>
+              {SCORE_BANDS.map((b) => (
+                <div key={b.label} style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
+                  <span className="sev-dot" style={{ background: b.color }} />
+                  <span className="meta" style={{ color: b.color, minWidth: 90 }}>{b.label} · {b.word}</span>
+                  <span className="dim" style={{ fontSize: "var(--fs-sm)" }}>{b.d}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* S6 — Safety floor / what we never do */}
+      <section id="safety" aria-labelledby="safety-h" className="section section--band">
+        <div className="container">
+          <p className="eyebrow">THE SAFETY FLOOR</p>
+          <h2 id="safety-h" style={{ fontSize: "var(--fs-h1)", maxWidth: "24ch" }} data-reveal>
+            What we never do — and the controls that back it up.
+          </h2>
+          <div className="grid grid-2" style={{ marginTop: "var(--sp-7)" }}>
+            {NEVER.map((n) => (
+              <div key={n.t} className="card" data-reveal>
+                <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>
+                  {/* explicit NEVER marker — these are refusals, not features */}
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" style={{ flex: "none" }}>
+                    <path d="M3 3l8 8M11 3l-8 8" stroke="var(--sev-critical)" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  </svg>
+                  <span className="meta" style={{ color: "var(--sev-critical)", letterSpacing: ".08em" }}>NEVER</span>
+                  {n.t}
+                </h3>
+                <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{n.d}</p>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-2" style={{ marginTop: "var(--sp-4)" }}>
             {SAFETY.map((s) => (
               <div key={s.t} className="card card--glow" data-reveal>
                 <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>
-                  <span aria-hidden style={{ color: "var(--sev-low)" }}>✓</span>
+                  <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" style={{ flex: "none" }}>
+                    <path d="M2.5 7.5l3 3 6-7" stroke="var(--sev-low)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                   {s.href ? <Link href={s.href}>{s.t}</Link> : s.t}
                 </h3>
                 <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{s.d}</p>
@@ -342,23 +347,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* S8 — Differentiator */}
-      <section aria-labelledby="why-h" className="section">
-        <div className="container">
-          <h2 id="why-h" style={{ fontSize: "var(--fs-h2)" }} data-reveal>Why Ayin.</h2>
-          <div className="grid grid-3" style={{ marginTop: "var(--sp-6)" }}>
-            {WHY.map((w) => (
-              <div key={w.t} data-reveal>
-                <h3 style={{ marginBottom: "var(--sp-2)" }}>{w.t}</h3>
-                <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{w.d}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* S9 — FAQ */}
-      <section id="faq" aria-labelledby="faq-h" className="section section--band">
+      {/* S7 — FAQ */}
+      <section id="faq" aria-labelledby="faq-h" className="section">
         <div className="container-read">
           <p className="eyebrow">QUESTIONS</p>
           <h2 id="faq-h" style={{ fontSize: "var(--fs-h1)" }} data-reveal>Honest answers.</h2>
@@ -386,53 +376,30 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* S10 — Final CTA */}
-      <section aria-labelledby="cta-h" className="section">
+      {/* S8 — Final CTA */}
+      <section aria-labelledby="cta-h" className="section section--band">
         <div className="container" style={{ textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "var(--sp-4)" }} aria-hidden>
             <IrisMark size={56} animate />
           </div>
-          <h2 id="cta-h" style={{ fontSize: "var(--fs-h1)" }} data-reveal>Point the lens at yourself first.</h2>
+          <h2 id="cta-h" style={{ fontSize: "var(--fs-h1)" }} data-reveal>
+            See what the internet knows about you — then make it forget.
+          </h2>
           <p className="lead" style={{ margin: "var(--sp-3) auto var(--sp-6)" }} data-reveal>
             A few minutes. One score. A plan you control.
           </p>
           <div style={{ display: "flex", gap: "var(--sp-3)", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/signup" className="btn btn-primary btn-lg">Run my free self-scan →</Link>
+            <Link href="/signup" className="btn btn-primary btn-lg">Run my free scan</Link>
             <Link href="#how" className="btn btn-ghost btn-lg">or read how it works</Link>
           </div>
+          <p className="meta" style={{ marginTop: "var(--sp-4)", color: "var(--fg-faint)" }}>
+            Self-scan only · no card required · exclude-me &amp; delete-everything built in
+          </p>
         </div>
       </section>
 
       <span id="landing-end" aria-hidden />
       <LandingEnhancements />
     </main>
-  );
-}
-
-function FauxCite({ n }: { n: number }) {
-  return (
-    <span
-      className="meta"
-      style={{
-        border: "1px solid var(--line)",
-        color: "var(--iris-400)",
-        borderRadius: 6,
-        padding: "0 0.35rem",
-        marginLeft: "0.2rem",
-        verticalAlign: "text-top",
-      }}
-    >
-      {n}
-    </span>
-  );
-}
-
-function SampleRow({ word, color, text }: { word: string; color: string; text: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", padding: "var(--sp-1) 0" }}>
-      <span className="sev-dot" style={{ background: color }} />
-      <span className="meta" style={{ color, minWidth: 64 }}>{word}</span>
-      <span style={{ fontSize: "var(--fs-sm)" }}>{text}</span>
-    </div>
   );
 }

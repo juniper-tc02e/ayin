@@ -83,8 +83,11 @@ export default function DataRights() {
               type="submit"
               disabled={busy || ack !== "DELETE" || !password}
               style={{
-                padding: "0.45rem 0.9rem", background: "var(--down)", color: "#fff",
-                border: "none", borderRadius: 8, cursor: "pointer",
+                // calm-destructive: outline plum-rose on the card surface (≥4.5:1),
+                // never a filled alarm button (PRD §12.1)
+                padding: "0.45rem 0.9rem", background: "transparent", color: "var(--sev-critical)",
+                border: "1px solid var(--sev-critical)", borderRadius: 8, cursor: "pointer",
+                fontWeight: 600,
                 opacity: ack === "DELETE" && password ? 1 : 0.5,
               }}
             >

@@ -76,7 +76,7 @@ export default function AuthForm({ mode }: { mode: "signup" | "login" }) {
           />
         </div>
       )}
-      {error && <p style={{ color: "var(--down)", margin: "0 0 var(--sp-3)" }}>{error}</p>}
+      {error && <p style={{ color: "var(--sev-critical)", margin: "0 0 var(--sp-3)" }}>{error}</p>}
       <button type="submit" disabled={busy} className="btn btn-primary" style={{ width: "100%" }}>
         {busy ? "…" : mode === "signup" ? "Create account" : "Log in"}
       </button>
