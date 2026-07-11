@@ -156,6 +156,16 @@ def start_scan(
         inline=inline, subject=target,
     )
     if not result.passed and result.decision.value == "refuse":
+        if is_third_party:
+            # Never leak WHY a third-party scan was refused — no_consent vs
+            # no_verified_anchor vs subject_excluded vs rate_limited would be a
+            # subject-status oracle a stranger could probe with an arbitrary
+            # subject_id. Uniform generic refusal; the real reason is in the
+            # audit log server-side (this mirrors the redacted success path).
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail={"scan_id": str(scan.id), "reason": "not_authorized"},
+            )
         code = next(
             (http for prefix, http in _REFUSAL_HTTP if result.reason.startswith(prefix)),
             status.HTTP_409_CONFLICT,

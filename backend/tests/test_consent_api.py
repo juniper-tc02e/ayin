@@ -163,7 +163,9 @@ def test_scan_endpoint_refuses_third_party_without_consent(client, db):
 
     r = client.post("/scans", json={"subject_id": str(stranger_subject.id)})
     assert r.status_code == 403
-    assert r.json()["detail"]["reason"].startswith("no_consent")
+    # Generic reason — the real gate reason (no_consent/excluded/…) must NOT leak
+    # to a third-party requester (it would be a subject-status oracle).
+    assert r.json()["detail"]["reason"] == "not_authorized"
 
 
 def test_self_scan_still_works_with_no_body(client):
