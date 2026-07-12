@@ -19,6 +19,23 @@ const STATUS_LABEL: Record<string, string> = {
 
 const ACTIVE_STATUSES = ["queued", "gated", "running", "resolving", "scoring"];
 
+// Human-readable names for connector ids — raw snake_case source slugs
+// shouldn't leak into user-facing copy. Fallback capitalizes the id so an
+// unmapped/new connector still reads as a word, not a bare slug.
+const CONNECTOR_LABELS: Record<string, string> = {
+  fake: "Demo source (synthetic fixtures)",
+  breach: "Breach indexes",
+  search: "Public web search",
+  broker: "Data-broker listings",
+};
+
+function connectorLabel(connectorId: string): string {
+  return (
+    CONNECTOR_LABELS[connectorId] ??
+    connectorId.charAt(0).toUpperCase() + connectorId.slice(1)
+  );
+}
+
 export default function ScanPanel() {
   const [scans, setScans] = useState<Scan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -115,6 +132,11 @@ export default function ScanPanel() {
 
   const selectedScan = scans.find((s) => s.id === selected) ?? scans[0];
   const selectedId = selectedScan?.id ?? null;
+  // Re-scan must not double-fire: block while the start request is in
+  // flight (busy) AND while the selected scan is still mid-pipeline —
+  // the server also gates this, but the UI should say so too.
+  const scanActive = !!selectedScan && ACTIVE_STATUSES.includes(selectedScan.status);
+  const startDisabled = busy || scanActive;
   // Signature of what the activity feed depends on — fetch /activity only when
   // status or progress actually changes (each read takes the audit hash-chain
   // lock + writes a record), not on every 2s liveness poll.
@@ -156,10 +178,12 @@ export default function ScanPanel() {
         <h2 style={{ margin: 0, fontSize: "1rem" }}>Your exposure scan</h2>
         <button
           onClick={startScan}
-          disabled={busy}
+          disabled={startDisabled}
           style={{
             padding: "0.5rem 1.1rem", background: "var(--cta-500)", color: "var(--on-cta)",
-            border: "none", borderRadius: 8, fontWeight: 650, cursor: "pointer",
+            border: "none", borderRadius: 8, fontWeight: 650,
+            cursor: startDisabled ? "not-allowed" : "pointer",
+            opacity: startDisabled ? 0.6 : 1,
           }}
         >
           {busy ? "…" : scans.length ? "Re-scan" : "Run my first scan"}
@@ -173,7 +197,12 @@ export default function ScanPanel() {
 
       {selectedScan && (
         <div style={{ marginTop: "0.5rem" }}>
-          <div className="status-row" style={{ justifyContent: "space-between" }}>
+          <div
+            className="status-row"
+            style={{ justifyContent: "space-between" }}
+            role="status"
+            aria-live="polite"
+          >
             <span>
               <span
                 className={`dot ${
@@ -197,7 +226,7 @@ export default function ScanPanel() {
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.4rem" }}>
               {selectedScan.jobs.map((j) => (
                 <code key={j.connector_id} style={{ fontSize: "0.75rem" }}>
-                  {j.connector_id}: {j.status}
+                  {connectorLabel(j.connector_id)}: {j.status}
                   {j.status === "done" ? ` (${j.findings_count})` : ""}
                 </code>
               ))}
@@ -239,6 +268,7 @@ export default function ScanPanel() {
               <FindingsList
                 scanId={selectedScan.id}
                 onReviewed={() => setReviewVersion((v) => v + 1)}
+                reportHref={`/report/${selectedScan.id}`}
               />
             </div>
           )}

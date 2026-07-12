@@ -28,25 +28,52 @@ const SENSITIVITY_WORD: Record<Finding["sensitivity"], string> = {
   low: "Low",
 };
 
-// Jump to the matching remediation item, falling back to the plan section.
-function scrollToFix(findingId: string) {
+// Jump to the matching remediation item, falling back to the plan section —
+// but only when one of those anchors actually exists on the current page
+// (e.g. the /report page). When FindingsList is rendered somewhere with no
+// remediation section (the dashboard's inline ScanPanel), fall back to a
+// full navigation to the report's anchor via reportHref, if one was given.
+function scrollOrNavigateToFix(findingId: string, reportHref?: string) {
   const el =
     document.getElementById(`fix-${findingId}`) ||
     document.getElementById("remediation-plan");
-  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  if (reportHref) {
+    window.location.assign(`${reportHref}#fix-${findingId}`);
+  }
 }
 
 export default function FindingsList({
   scanId,
   onReviewed,
+  reportHref,
 }: {
   scanId: string;
   onReviewed?: () => void;
+  // Base report URL (e.g. "/report/{scanId}") to deep-link "Fix this ->"
+  // to when no in-page remediation anchor exists. Omit when this list is
+  // already rendered on the report page itself (anchors exist there).
+  reportHref?: string;
 }) {
   const [page, setPage] = useState<FindingsPage | null>(null);
   const [stepUpToken, setStepUpToken] = useState<string | null>(null);
   const [showStepUp, setShowStepUp] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Whether a remediation anchor exists anywhere on the current page —
+  // checked once after mount (client-only DOM query). Combined with
+  // reportHref to decide whether "Fix this ->" has anywhere to go; if
+  // neither is true, the button is hidden rather than left as a no-op.
+  const [hasAnchorTarget, setHasAnchorTarget] = useState(false);
+
+  useEffect(() => {
+    setHasAnchorTarget(
+      !!document.getElementById("remediation-plan") ||
+        !!document.querySelector('[id^="fix-"]')
+    );
+  }, []);
 
   const load = useCallback(
     (token?: string | null) => {
@@ -99,7 +126,23 @@ export default function FindingsList({
       {page.locked_credential_findings > 0 && (
         <div className="card" style={{ borderColor: "var(--warn)" }}>
           <p style={{ margin: 0 }}>
-            🔒 {page.locked_credential_findings} credential finding
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+              style={{ verticalAlign: "-2px", marginRight: "0.3rem", flexShrink: 0 }}
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            {page.locked_credential_findings} credential finding
             {page.locked_credential_findings > 1 ? "s are" : " is"} locked.{" "}
             <button
               onClick={() => setShowStepUp(true)}
@@ -164,20 +207,41 @@ export default function FindingsList({
                       <> · <span style={{ color: "var(--ok)" }}>confirmed by you</span></>
                     )}
                   </p>
-                  <p style={{ margin: "0.35rem 0 0" }}>
-                    <button
-                      onClick={() => scrollToFix(f.id)}
-                      style={{
-                        background: "none", border: "none", color: "var(--iris-400)",
-                        cursor: "pointer", padding: 0, font: "inherit", fontSize: "0.8rem",
-                      }}
-                    >
-                      Fix this →
-                    </button>
-                  </p>
+                  {(hasAnchorTarget || reportHref) && (
+                    <p style={{ margin: "0.35rem 0 0" }}>
+                      <button
+                        onClick={() => scrollOrNavigateToFix(f.id, reportHref)}
+                        style={{
+                          background: "none", border: "none", color: "var(--iris-400)",
+                          cursor: "pointer", font: "inherit", fontSize: "0.8rem",
+                          padding: "0.5rem 0.6rem", marginLeft: "-0.6rem",
+                          minHeight: 44, display: "inline-flex", alignItems: "center",
+                        }}
+                      >
+                        Fix this →
+                      </button>
+                    </p>
+                  )}
                   {f.conflicts.length > 0 && (
                     <p style={{ margin: "0.3rem 0 0", fontSize: "0.8rem", color: "var(--warn)" }}>
-                      ⚠ Sources disagree on{" "}
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        focusable="false"
+                        style={{ verticalAlign: "-2px", marginRight: "0.3rem", flexShrink: 0 }}
+                      >
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      Sources disagree on{" "}
                       {f.conflicts.map((c) => c.field).join(", ")} — shown as reported, not
                       merged.
                     </p>
@@ -192,7 +256,8 @@ export default function FindingsList({
                         style={{
                           background: "none", border: "1px solid var(--border)",
                           color: "var(--accent)", borderRadius: "var(--r-sm)", cursor: "pointer",
-                          padding: "0.2rem 0.6rem", fontSize: "0.8rem",
+                          padding: "0.6rem 1rem", fontSize: "0.8rem",
+                          minHeight: 44, display: "inline-flex", alignItems: "center",
                         }}
                       >
                         {expanded === f.id ? "Hide removal steps" : "How to remove this"}
@@ -304,13 +369,16 @@ export default function FindingsList({
 
 function reviewButton(color: string): React.CSSProperties {
   return {
-    padding: "0.3rem 0.8rem",
+    padding: "0.5rem 1rem",
     background: "transparent",
     color,
     border: "1px solid var(--border)",
     borderRadius: 6,
     cursor: "pointer",
     fontSize: "0.85rem",
+    minHeight: 44,
+    display: "inline-flex",
+    alignItems: "center",
   };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 
 export default function StepUpModal({
@@ -13,14 +13,49 @@ export default function StepUpModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
+  // Minimal manual focus trap (no new dependency): remember what had focus
+  // before the dialog opened, move focus into the dialog, cycle Tab/Shift+Tab
+  // across the dialog's three focusable elements, restore focus on close.
   // Escape closes the dialog (keyboard parity with the scrim click).
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    passwordRef.current?.focus();
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = ([passwordRef.current, submitRef.current, cancelRef.current] as (HTMLElement | null)[]).filter(
+        (el): el is HTMLElement => el !== null
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const current = document.activeElement as HTMLElement | null;
+      const currentIndex = current ? focusable.indexOf(current) : -1;
+      if (e.shiftKey) {
+        if (currentIndex <= 0) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (currentIndex === -1 || currentIndex === focusable.length - 1) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previouslyFocused?.focus();
+    };
   }, [onClose]);
 
   async function submit(e: React.FormEvent) {
@@ -65,9 +100,10 @@ export default function StepUpModal({
           your audit trail.
         </p>
         <input
+          ref={passwordRef}
           type="password"
-          autoFocus
           required
+          autoComplete="current-password"
           aria-label="Your password"
           placeholder="Your password"
           value={password}
@@ -78,9 +114,14 @@ export default function StepUpModal({
             border: "1px solid var(--border)", borderRadius: 8, marginBottom: "0.75rem",
           }}
         />
-        {error && <p style={{ color: "var(--down)", marginTop: 0 }}>{error}</p>}
+        {error && (
+          <p role="alert" style={{ color: "var(--down)", marginTop: 0 }}>
+            {error}
+          </p>
+        )}
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
+            ref={submitRef}
             type="submit"
             disabled={busy}
             style={{
@@ -91,6 +132,7 @@ export default function StepUpModal({
             {busy ? "…" : "Unlock details"}
           </button>
           <button
+            ref={cancelRef}
             type="button"
             onClick={onClose}
             style={{

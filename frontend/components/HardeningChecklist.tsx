@@ -165,8 +165,10 @@ function ChecklistRow({
               onClick={() => setShowStandard((v) => !v)}
               style={{
                 background: "none", border: "none", color: "var(--accent)",
-                cursor: "pointer", padding: "0.4rem 0 0", font: "inherit",
+                cursor: "pointer", padding: "0.6rem 0.75rem", font: "inherit",
                 fontSize: "0.8rem", textDecoration: "underline",
+                marginTop: "0.4rem", marginLeft: "-0.75rem",
+                minHeight: 44, display: "inline-flex", alignItems: "center",
               }}
             >
               {showStandard ? "Hide the standard steps" : "Show the standard steps"}

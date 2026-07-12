@@ -45,6 +45,8 @@ export default function AuthForm({ mode }: { mode: "signup" | "login" }) {
           id="auth-email"
           type="email"
           required
+          autoComplete="email"
+          aria-describedby={error ? "auth-error" : undefined}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -58,6 +60,8 @@ export default function AuthForm({ mode }: { mode: "signup" | "login" }) {
           type="password"
           required
           minLength={mode === "signup" ? 10 : 1}
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          aria-describedby={error ? "auth-error" : undefined}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -76,7 +80,11 @@ export default function AuthForm({ mode }: { mode: "signup" | "login" }) {
           />
         </div>
       )}
-      {error && <p style={{ color: "var(--sev-critical)", margin: "0 0 var(--sp-3)" }}>{error}</p>}
+      {error && (
+        <p id="auth-error" role="alert" style={{ color: "var(--sev-critical)", margin: "0 0 var(--sp-3)" }}>
+          {error}
+        </p>
+      )}
       <button type="submit" disabled={busy} className="btn btn-primary" style={{ width: "100%" }}>
         {busy ? "…" : mode === "signup" ? "Create account" : "Log in"}
       </button>

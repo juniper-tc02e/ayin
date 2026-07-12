@@ -10,18 +10,21 @@ function VerifyInner() {
   const token = params.get("token");
   const [message, setMessage] = useState("Verifying…");
   const [done, setDone] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!token) {
       setMessage("Missing verification token.");
+      setFailed(true);
       setDone(true);
       return;
     }
     api("/identifiers/verify-email", { method: "POST", body: { token } })
       .then(() => setMessage("Identifier verified — it can now be included in your scans."))
-      .catch((err) =>
-        setMessage(err instanceof ApiError ? err.message : "Verification failed.")
-      )
+      .catch((err) => {
+        setMessage(err instanceof ApiError ? err.message : "Verification failed.");
+        setFailed(true);
+      })
       .finally(() => setDone(true));
   }, [token]);
 
@@ -29,7 +32,9 @@ function VerifyInner() {
     <main>
       <h1>Identifier verification</h1>
       <div className="card">
-        <p style={{ margin: 0 }}>{message}</p>
+        <p style={{ margin: 0 }} role={failed ? "alert" : "status"}>
+          {message}
+        </p>
       </div>
       {done && (
         <p className="dim" style={{ marginTop: "1rem" }}>

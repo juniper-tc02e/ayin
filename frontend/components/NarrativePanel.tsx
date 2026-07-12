@@ -121,7 +121,11 @@ export default function NarrativePanel({
   // First load: the very first /report hit may generate synchronously when
   // the finalize-time pre-generation was skipped — say so instead of nothing.
   if (!narrative)
-    return failed ? null : (
+    return failed ? (
+      <p className="dim" role="status" style={{ fontSize: "0.85rem", marginTop: "1rem" }}>
+        Couldn't load the summary — the findings below are still accurate.
+      </p>
+    ) : (
       <p className="dim" style={{ fontSize: "0.85rem", marginTop: "1rem" }}>
         Writing your report…
       </p>
@@ -130,7 +134,9 @@ export default function NarrativePanel({
   if (!rendersAnything(narrative)) return null; // zero findings: the low-exposure card says it better
 
   return (
-    <div className="card">
+    // card--glow: the cited AI narrative is the product's signature surface —
+    // it gets the escalated chrome, not the same box as everything else.
+    <div className="card card--glow">
       <div
         style={{
           display: "flex", justifyContent: "space-between",

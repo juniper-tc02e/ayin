@@ -20,7 +20,7 @@ function VerifyInner() {
     api("/auth/verify-email", { method: "POST", body: { token } })
       .then(() => {
         setState("done");
-        setMessage("Email verified. You can now run your first scan once setup is complete.");
+        setMessage("Your email is verified. Head to your dashboard to run your first scan.");
       })
       .catch((err) => {
         setState("failed");
@@ -32,7 +32,9 @@ function VerifyInner() {
     <main>
       <h1>Email verification</h1>
       <div className="card">
-        <p style={{ margin: 0 }}>{message}</p>
+        <p style={{ margin: 0 }} role={state === "failed" ? "alert" : "status"}>
+          {message}
+        </p>
       </div>
       {state !== "working" && (
         <p className="dim" style={{ marginTop: "1rem" }}>

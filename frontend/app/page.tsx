@@ -19,7 +19,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Can I scan someone else?",
-    a: "No, and that's deliberate. Ayin only scans identifiers you've verified you control. It is not a people-search or background-check tool, and there is no way to look anyone else up — by design.",
+    a: "No, and that's deliberate. Ayin only scans identifiers you've verified you control. It is not a people-search or background-check tool — a request to scan anyone else is refused at the gate, and the attempt is audited.",
   },
   {
     q: "Where does the data come from?",
@@ -67,10 +67,23 @@ const HOW = [
   },
 ];
 
+// Ordered by what's actually rare in this market: the trust architecture and
+// the visible audit trail lead; the score is table stakes and goes last.
 const PROOF = [
+  { t: "Self-scan only, by design", d: "You verify what you own before anything runs. Scanning anyone else is refused at the gate." },
+  { t: "Shows its work", d: "Every finding cites its source, and every scan records the agent's steps in an audit trail you can open." },
   { t: "0–100 scored exposure", d: "One clear number for how exploitable your data is — never a judgment of you." },
-  { t: "Every finding sourced", d: "Source, capture date, and confidence on every line. No mystery data, ever." },
-  { t: "Self-scan only, by design", d: "You verify what you own before anything runs. No lookup path for anyone else." },
+];
+
+// The landing's sample of the real agentic audit trail (E5) — step names mirror
+// the live PlannerTrail from a demo scan; no invented data, no timestamps.
+const TRAIL_SAMPLE = [
+  { t: "Scan requested", d: "self-scan · verified identifiers only" },
+  { t: "Safety gates checked", d: "exclusions · rate limits · abuse heuristics" },
+  { t: "Agent chose sources", d: "ordering decision recorded, with reasoning" },
+  { t: "Sources finished", d: "findings normalized · source + capture date attached" },
+  { t: "Matched & deduplicated", d: "uncertain matches held for YOUR review — never auto-merged" },
+  { t: "Report written by Qwen", d: "every sentence cites a finding · citation guard enforced" },
 ];
 
 const FINDINGS = [
@@ -111,7 +124,7 @@ const SCORE_BANDS = [
 const NEVER = [
   {
     t: "Scan anyone but you",
-    d: "No lookup path for a third party exists in this product. Self-scan only, enforced at the gate.",
+    d: "Looking someone else up is refused at the gate and audited. Self-scan only — you verify control before anything runs.",
   },
   {
     t: "Sell your data",
@@ -156,7 +169,7 @@ export default function LandingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_LD) }} />
 
       {/* S1 — Hero */}
-      <section aria-labelledby="hero-h" className="section">
+      <section aria-labelledby="hero-h" className="section section--hero">
         <div
           className="container"
           style={{
@@ -193,8 +206,25 @@ export default function LandingPage() {
             </ul>
           </div>
           <div style={{ display: "flex", justifyContent: "center" }} aria-hidden>
-            <div style={{ position: "relative", filter: "drop-shadow(var(--glow-aura))" }}>
-              <ScoreRing value={34} size={260} label="Sample Exposure" sublabel="lower is better" />
+            {/* sample readout: what a finished scan hands you — ring + category split */}
+            <div className="hero-readout" style={{ filter: "drop-shadow(var(--glow-aura))" }}>
+              <ScoreRing value={34} size={200} label="Sample Exposure" sublabel="lower is better" />
+              <div className="readout-bars">
+                {[
+                  { c: "Brokers", v: 14 },
+                  { c: "Credentials", v: 12 },
+                  { c: "Social", v: 5 },
+                  { c: "Linkage", v: 3 },
+                  { c: "Records", v: 0 },
+                ].map((b) => (
+                  <div key={b.c} className="readout-bar">
+                    <span className="meta">{b.c}</span>
+                    <span className="track"><span className="fill" style={{ width: `${b.v * 2}%`, display: "block" }} /></span>
+                    <span className="meta" style={{ textAlign: "right" }}>{b.v}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="meta" style={{ margin: 0, color: "var(--fg-faint)" }}>sample readout · every line sourced</p>
             </div>
           </div>
         </div>
@@ -220,9 +250,9 @@ export default function LandingPage() {
           >
             What Ayin guarantees
           </h2>
-          <div className="grid grid-3">
+          <div className="proof-row">
             {PROOF.map((p) => (
-              <div key={p.t} className="card" data-reveal>
+              <div key={p.t} data-reveal>
                 <h3 style={{ marginTop: 0 }}>{p.t}</h3>
                 <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{p.d}</p>
               </div>
@@ -246,6 +276,46 @@ export default function LandingPage() {
                 <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>{s.d}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* S3.5 — Shows its work: the agentic audit trail, the thing nobody else has */}
+      <section id="trail" aria-labelledby="trail-h" className="section">
+        <div
+          className="container"
+          style={{ display: "grid", gap: "var(--sp-7)", gridTemplateColumns: "1fr 1.05fr", alignItems: "center" }}
+          data-cols
+        >
+          <div>
+            <p className="eyebrow">SHOWS ITS WORK</p>
+            <h2 id="trail-h" style={{ fontSize: "var(--fs-h1)", maxWidth: "18ch" }} data-reveal>
+              Every scan explains itself.
+            </h2>
+            <p className="lead" data-reveal>
+              Other scanners hand you a verdict. Ayin&apos;s scan agent is accountable by
+              design: which sources it chose and why, which safety gates it passed, what the
+              AI wrote and what every sentence is based on — recorded step by step in an
+              immutable audit log.
+            </p>
+            <p className="dim" style={{ fontSize: "var(--fs-sm)", maxWidth: "52ch" }} data-reveal>
+              The trail beside this text mirrors a real demo scan. Yours ships with every
+              report — open it any time from &ldquo;How Ayin ran this scan.&rdquo;
+            </p>
+          </div>
+          <div className="card card--raised" data-reveal style={{ marginTop: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--sp-3)", marginBottom: "var(--sp-5)" }}>
+              <span className="meta" style={{ letterSpacing: ".08em" }}>AGENT ACTIVITY</span>
+              <span className="pill pill-iris">✦ audited · AI-attributed</span>
+            </div>
+            <div className="trail">
+              {TRAIL_SAMPLE.map((s) => (
+                <div key={s.t} className="trail-node">
+                  <h3 style={{ margin: "0 0 2px", fontSize: "0.95rem" }}>{s.t}</h3>
+                  <p className="meta" style={{ margin: 0 }}>{s.d}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -314,7 +384,7 @@ export default function LandingPage() {
           </h2>
           <div className="grid grid-2" style={{ marginTop: "var(--sp-7)" }}>
             {NEVER.map((n) => (
-              <div key={n.t} className="card" data-reveal>
+              <div key={n.t} className="card card--never" data-reveal>
                 <h3 style={{ marginTop: 0, display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>
                   {/* explicit NEVER marker — these are refusals, not features */}
                   <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" style={{ flex: "none" }}>
@@ -367,7 +437,7 @@ export default function LandingPage() {
                   }}
                 >
                   {f.q}
-                  <span aria-hidden style={{ color: "var(--iris-400)" }}>+</span>
+                  <span aria-hidden className="faq-marker" style={{ color: "var(--iris-400)" }}>+</span>
                 </summary>
                 <p className="dim" style={{ margin: "var(--sp-3) 0 0", fontSize: "var(--fs-sm)" }}>{f.a}</p>
               </details>

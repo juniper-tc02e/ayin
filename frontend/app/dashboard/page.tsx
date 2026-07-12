@@ -44,7 +44,7 @@ export default function DashboardPage() {
   if (!user) return null;
 
   return (
-    <main>
+    <main className="main-app">
       <h1>Your exposure</h1>
       <div className="card">
         <p style={{ marginTop: 0 }}>

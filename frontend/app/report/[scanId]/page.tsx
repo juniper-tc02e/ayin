@@ -17,6 +17,8 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
   const router = useRouter();
   const [scan, setScan] = useState<Scan | null>(null);
   const [checklist, setChecklist] = useState<Checklist | null>(null);
+  const [checklistFailed, setChecklistFailed] = useState(false);
+  const [checklistAttempt, setChecklistAttempt] = useState(0); // bump to retry
   const [reviewVersion, setReviewVersion] = useState(0);
   const [missing, setMissing] = useState(false);
   // When the narrative provides cited "top fixes", it owns the top-3 slot —
@@ -39,19 +41,31 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
   // One checklist fetch for the whole page — both HardeningChecklist
   // instances read this, so the B3 generation behind GET /checklist runs at
   // most once per view (not once per instance). Stale-guarded: the first
-  // fetch can regenerate synchronously for seconds, so only the latest
-  // request may land (mirrors NarrativePanel).
+  // fetch can regenerate synchronously for MINUTES on the LLM path, so only
+  // the latest request may land (mirrors NarrativePanel). Transient failures
+  // retry twice with backoff; after that we surface an explicit error state
+  // instead of leaving "Building your plan…" up forever.
   useEffect(() => {
     let stale = false;
-    api<Checklist>(`/scans/${scanId}/checklist`)
-      .then((c) => {
-        if (!stale) setChecklist(c);
-      })
-      .catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    setChecklistFailed(false);
+    const attempt = (n: number) => {
+      api<Checklist>(`/scans/${scanId}/checklist`)
+        .then((c) => {
+          if (!stale) setChecklist(c);
+        })
+        .catch(() => {
+          if (stale) return;
+          if (n < 2) timer = setTimeout(() => attempt(n + 1), 4000 * (n + 1));
+          else setChecklistFailed(true);
+        });
+    };
+    attempt(0);
     return () => {
       stale = true;
+      if (timer) clearTimeout(timer);
     };
-  }, [scanId, reviewVersion]);
+  }, [scanId, reviewVersion, checklistAttempt]);
 
   if (missing)
     return (
@@ -77,7 +91,7 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
   const lowExposure = checklist !== null && checklist.current_overall < 10;
 
   return (
-    <main>
+    <main className="main-app">
       <p style={{ margin: "0 0 0.5rem" }}>
         <Link href="/dashboard" className="dim">← Dashboard</Link>
       </p>
@@ -87,16 +101,19 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
         {scan.source_set.length} source(s) · every finding cites where it came from
       </p>
 
-      {/* 1. Hero score + verdict */}
-      <ScorePanel scanId={scanId} refreshKey={reviewVersion} />
+      {/* 1. Score + grounded narrative — side by side on wide screens so the
+          desktop report doesn't read as a mobile column (review: app width) */}
+      <div className="report-lead">
+        <ScorePanel scanId={scanId} refreshKey={reviewVersion} />
 
-      {/* 1b. Grounded narrative — what the numbers mean, every statement
-          citing its source finding (B1/E2) */}
-      <NarrativePanel
-        scanId={scanId}
-        refreshKey={reviewVersion}
-        onLoaded={({ hasTopFixes }) => setNarrativeOwnsTopFixes(hasTopFixes)}
-      />
+        {/* Grounded narrative — what the numbers mean, every statement
+            citing its source finding (B1/E2) */}
+        <NarrativePanel
+          scanId={scanId}
+          refreshKey={reviewVersion}
+          onLoaded={({ hasTopFixes }) => setNarrativeOwnsTopFixes(hasTopFixes)}
+        />
+      </div>
 
       {/* low-exposure: reassure, never a blank page */}
       {lowExposure && (
@@ -127,9 +144,25 @@ export default function ReportPage({ params }: { params: Promise<{ scanId: strin
         Your remediation plan
       </h2>
       {checklist === null ? (
-        <p className="dim" style={{ fontSize: "0.85rem" }}>
-          Building your personalized plan…
-        </p>
+        checklistFailed ? (
+          <p className="dim" role="status" style={{ fontSize: "0.85rem" }}>
+            Couldn&apos;t build your plan — the findings above are unaffected.{" "}
+            <button
+              onClick={() => setChecklistAttempt((v) => v + 1)}
+              style={{
+                background: "none", border: "none", padding: 0, font: "inherit",
+                color: "var(--iris-400)", cursor: "pointer", textDecoration: "underline",
+              }}
+            >
+              Retry
+            </button>
+          </p>
+        ) : (
+          <p className="dim" role="status" aria-live="polite" style={{ fontSize: "0.85rem" }}>
+            Building your personalized plan… this can take a minute or two while the AI
+            writes your steps.
+          </p>
+        )
       ) : (
         <>
           <HardeningChecklist scanId={scanId} checklist={checklist} />

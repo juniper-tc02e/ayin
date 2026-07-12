@@ -185,6 +185,21 @@ export async function api<T>(
     } catch {
       /* keep statusText */
     }
+    // Shared session-expiry redirect: only for a logged-in page hitting a
+    // protected route, never for /auth/* (login failures and the /auth/me
+    // probe must keep surfacing their ApiError untouched, not bounce the
+    // page), and never if we're already on /login or /signup. The ApiError
+    // is still thrown below either way, so callers' catch blocks see the
+    // same behavior as before.
+    if (
+      res.status === 401 &&
+      typeof window !== "undefined" &&
+      !path.startsWith("/auth") &&
+      window.location.pathname !== "/login" &&
+      window.location.pathname !== "/signup"
+    ) {
+      window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+    }
     throw new ApiError(res.status, detail);
   }
   return (await res.json()) as T;

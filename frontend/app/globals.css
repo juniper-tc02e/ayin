@@ -73,7 +73,8 @@
 
   /* ---- Layout widths ---- */
   --mw-wide: 1120px;  /* marketing sections */
-  --mw-read: 760px;   /* app / report column */
+  --mw-read: 760px;   /* long-form reading column */
+  --mw-app:  960px;   /* app shell (dashboard / report) — data-dense pages breathe wider */
   --gutter:  clamp(20px, 5vw, 64px);
 
   /* ---- Radii ---- */
@@ -166,10 +167,22 @@ a:hover { text-decoration: underline; }
 .container { max-width: var(--mw-wide); margin: 0 auto; padding-inline: var(--gutter); }
 .container-read { max-width: var(--mw-read); margin: 0 auto; padding-inline: var(--gutter); }
 main { max-width: var(--mw-read); margin: 0 auto; padding: var(--sp-8) var(--gutter); } /* legacy app pages */
+main.main-app { max-width: var(--mw-app); } /* dashboard / report: wider than the reading column */
 main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages drive their own widths */
+/* report: score + narrative sit side-by-side on wide screens */
+.report-lead { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); align-items: start; }
+@media (min-width: 1024px) { .report-lead { grid-template-columns: 0.9fr 1.1fr; } }
 .section { padding-block: var(--sp-9); }
 @media (max-width: 720px) { .section { padding-block: var(--sp-7); } }
-.section--band { background: var(--ink-800); }
+.section--band { background: var(--ink-800); border-block: 1px solid var(--line); }
+/* Atmospheric floor — the ONE gradient moment on the page (hero only; every
+   other section stays flat by design). */
+.section--hero {
+  position: relative;
+  background:
+    radial-gradient(1100px 540px at 74% -12%, rgba(59, 130, 246, 0.16), transparent 62%),
+    radial-gradient(760px 420px at 8% 112%, rgba(29, 78, 216, 0.10), transparent 60%);
+}
 .eyebrow {
   font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: .12em;
   text-transform: uppercase; color: var(--fg-faint); margin: 0 0 var(--sp-3);
@@ -183,6 +196,16 @@ main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages driv
 }
 .card--raised { box-shadow: var(--e-2); }
 .card--glow   { box-shadow: var(--e-1), var(--glow-aura); border-color: var(--line-strong); }
+/* refusal cards (the NEVER list): outlined, unfilled — a different voice than features */
+.card--never  { background: transparent; box-shadow: none; border-color: color-mix(in srgb, var(--sev-critical) 26%, var(--line)); }
+/* guarantee strip: hairline-divided row, not cards — it's a list of facts, not a feature grid */
+.proof-row { display: grid; grid-template-columns: repeat(3, 1fr); }
+.proof-row > div { padding: var(--sp-5) var(--sp-6); }
+.proof-row > div + div { border-left: 1px solid var(--line); }
+@media (max-width: 860px) {
+  .proof-row { grid-template-columns: 1fr; }
+  .proof-row > div + div { border-left: none; border-top: 1px solid var(--line); }
+}
 .grid { display: grid; gap: var(--sp-5); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
@@ -240,12 +263,31 @@ main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages driv
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3);
   font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--fg-dim);
   letter-spacing: 0.02em;
+  list-style: none; margin: 0; padding: 0; /* markup is a <ul> — kill default bullets */
 }
-.trust-bar > span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.trust-bar > li, .trust-bar > span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.trust-bar > li:not(:last-child)::after,
 .trust-bar > span:not(:last-child)::after {
   content: ""; display: inline-block; width: 1px; height: 12px;
   background: var(--line-strong); margin-left: var(--sp-3);
 }
+
+/* ---- FAQ disclosure: marker rotates + → × when open; summary is a 44px target ---- */
+details.card > summary { min-height: 44px; align-items: center; }
+.faq-marker { display: inline-block; transition: transform var(--dur-2) var(--ease-out); }
+details[open] > summary .faq-marker { transform: rotate(45deg); }
+
+/* ---- Hero sample-readout: the ring plus a category split, framed as product UI ---- */
+.hero-readout {
+  background: color-mix(in srgb, var(--ink-700) 88%, transparent);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: var(--sp-6); box-shadow: var(--e-2);
+  display: grid; gap: var(--sp-5); justify-items: center; width: min(100%, 360px);
+}
+.readout-bars { display: grid; gap: var(--sp-2); width: 100%; }
+.readout-bar { display: grid; grid-template-columns: 92px 1fr 28px; align-items: center; gap: var(--sp-3); }
+.readout-bar .track { height: 6px; border-radius: var(--r-pill); background: var(--ink-550); overflow: hidden; }
+.readout-bar .fill { height: 100%; border-radius: var(--r-pill); background: var(--iris-500); }
 
 /* ---- Inputs / fields ---- */
 .field { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-4); }
@@ -266,7 +308,7 @@ main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages driv
 .site-header.scrolled { border-bottom-color: var(--line); }
 .nav-links { display: flex; gap: var(--sp-5); align-items: center; }
 @media (max-width: 760px) { .nav-links { display: none; } }
-.brand { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--fg); font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; letter-spacing: -0.01em; }
+.brand { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--fg); font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em; line-height: 1; }
 .brand:hover { text-decoration: none; }
 .nav-link { color: var(--fg-dim); font-size: var(--fs-sm); }
 .nav-link:hover { color: var(--fg); text-decoration: none; }
@@ -305,7 +347,7 @@ main.landing { max-width: none; margin: 0; padding: 0; } /* marketing pages driv
 @media (max-width: 760px) { .sticky-cta.show { display: block; } }
 
 /* ---- Iris mark (logo) focus gesture + header hover ---- */
-.iris--focus .iris-ring { transform-origin: 26px 21px; animation: irisFocus var(--dur-4) var(--ease-iris) both; }
+.iris--focus .iris-ring { transform-origin: 26px 23.5px; animation: irisFocus var(--dur-4) var(--ease-iris) both; }
 .iris--focus .iris-pupil { animation: pupilGlow var(--dur-4) var(--ease-iris) both; }
 @keyframes irisFocus { from { transform: scale(1.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes pupilGlow { from { opacity: .4; } to { opacity: 1; } }
