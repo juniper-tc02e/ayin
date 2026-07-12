@@ -6,7 +6,7 @@ export const contentType = "image/png";
 
 // Sentinel-dark social card — brand-consistent with the site (ink-900 navy,
 // trust-blue accent, single emerald chip). Headline is generated from code so
-// it never drifts from the site. The ʿayin-glance mark is drawn as inline SVG
+// it never drifts from the site. The audited-iris mark is drawn as inline SVG
 // with SOLID colors only (Satori-reliable; no gradients inside svg).
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -27,21 +27,32 @@ export default function OpengraphImage() {
         <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
           <svg width={86} height={86} viewBox="0 0 48 48">
             <path
-              d="M40 12 C36 19 31 25 25.5 28.8 C20.5 32.5 15 35.4 9.5 36.2"
+              d="M4 24 C12.5 12.5 35 12 44 22.5"
               fill="none"
               stroke="#F1F5F9"
-              strokeWidth="3.6"
+              strokeWidth="5.2"
               strokeLinecap="round"
             />
             <path
-              d="M8 20 C12 24 17.5 27 24 28.9"
+              d="M9 27.5 C16.5 33.8 31.5 34 39.5 27.5"
               fill="none"
               stroke="#F1F5F9"
-              strokeWidth="3.6"
+              strokeWidth="2.9"
               strokeLinecap="round"
               opacity={0.92}
             />
-            <circle cx="26" cy="20.6" r="4.3" fill="#3B82F6" />
+            <circle
+              cx="26"
+              cy="23.5"
+              r="7.2"
+              fill="none"
+              stroke="#3B82F6"
+              strokeWidth="2.7"
+              strokeLinecap="round"
+              strokeDasharray="37.3 7.94"
+              strokeDashoffset="9.43"
+            />
+            <circle cx="26" cy="23.5" r="3.2" fill="#60A5FA" />
           </svg>
           <div style={{ fontSize: 46, fontWeight: 700, color: "#F1F5F9" }}>Ayin</div>
         </div>
