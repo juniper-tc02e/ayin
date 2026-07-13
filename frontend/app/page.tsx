@@ -121,6 +121,33 @@ const SCORE_BANDS = [
   { label: "80–100", word: "Sensitive", color: "var(--sev-critical)", d: "Significant exposure — still a plan, never a wall of red." },
 ];
 
+// Roadmap teaser: statuses must stay HONEST (PRD rule: no fabricated trust
+// signals). "Live now" = shipped; everything else is stated as not-yet-built.
+// The actual waitlist (POST /intent) is auth-gated and lives on the report page.
+const ROADMAP = [
+  {
+    stage: "TODAY",
+    status: "Live now",
+    live: true,
+    t: "Free self-scan",
+    d: "Verify what's yours, get the 0–100 score and a fix-first plan. This is the product you're looking at.",
+  },
+  {
+    stage: "NEXT",
+    status: "Waitlist open",
+    live: false,
+    t: "Continuous monitoring",
+    d: "Ayin will re-check your verified identifiers and tell you when something new surfaces — a fresh breach, a re-listed broker record, a resurfaced profile.",
+  },
+  {
+    stage: "THEN",
+    status: "Waitlist open",
+    live: false,
+    t: "Done-for-you removal",
+    d: "Broker opt-outs will be filed and chased on your behalf, every request tracked in the same audit log as your scans.",
+  },
+];
+
 const NEVER = [
   {
     t: "Scan anyone but you",
@@ -372,6 +399,46 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* S5b — Where this goes: the monitoring/removal roadmap (honest statuses only) */}
+      <section id="next" aria-labelledby="next-h" className="section">
+        <div className="container">
+          <p className="eyebrow">WHERE THIS GOES</p>
+          <h2 id="next-h" style={{ fontSize: "var(--fs-h1)", maxWidth: "22ch" }} data-reveal>
+            A scan is a snapshot. Exposure moves.
+          </h2>
+          <p className="lead" style={{ maxWidth: "58ch" }} data-reveal>
+            New breaches land, brokers re-list, old profiles resurface. The roadmap follows the
+            problem: measure it today, watch it continuously, then clear it for you.
+          </p>
+          <div className="grid grid-3" style={{ marginTop: "var(--sp-7)" }}>
+            {ROADMAP.map((r) => (
+              <div key={r.stage} className={r.live ? "card card--glow" : "card"} data-reveal>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "var(--sp-2)",
+                  }}
+                >
+                  <span className="meta">{r.stage}</span>
+                  <span className={r.live ? "pill pill-iris" : "pill"}>{r.status}</span>
+                </div>
+                <h3 style={{ margin: "var(--sp-3) 0 var(--sp-2)" }}>{r.t}</h3>
+                <p className="dim" style={{ margin: 0, fontSize: "var(--fs-sm)" }}>
+                  {r.d}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="dim" style={{ marginTop: "var(--sp-5)", fontSize: "var(--fs-sm)" }} data-reveal>
+            Monitoring and removal will be the paid layer — the self-scan stays free. The
+            waitlist opens from your scan report:{" "}
+            <Link href="/signup">run your free scan</Link> and raise your hand.
+          </p>
         </div>
       </section>
 

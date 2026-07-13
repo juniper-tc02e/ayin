@@ -40,6 +40,13 @@ try {
   check("/ NO AggregateRating", !home.body.includes("AggregateRating"));
   check("/ is indexable (no noindex)", !NOINDEX.test(home.body));
 
+  // ---- roadmap teaser (#next) — statuses must stay honest ----
+  check("/ roadmap section present", home.body.includes('id="next"'));
+  check(
+    "/ roadmap statuses honest (Waitlist open, no build-progress claims)",
+    home.body.includes("Waitlist open") && !home.body.includes("In development")
+  );
+
   // ---- robots.txt ----
   const robots = await get("/robots.txt");
   check("/robots.txt → 200", robots.status === 200);
