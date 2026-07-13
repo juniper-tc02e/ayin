@@ -346,12 +346,14 @@ details[open] > summary .faq-marker { transform: rotate(45deg); }
 }
 @media (max-width: 760px) { .sticky-cta.show { display: block; } }
 
-/* ---- Iris mark (logo) focus gesture + header hover ---- */
-.iris--focus .iris-ring { transform-origin: 26px 23.5px; animation: irisFocus var(--dur-4) var(--ease-iris) both; }
-.iris--focus .iris-pupil { animation: pupilGlow var(--dur-4) var(--ease-iris) both; }
-@keyframes irisFocus { from { transform: scale(1.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@keyframes pupilGlow { from { opacity: .4; } to { opacity: 1; } }
-.site-header .iris-link:hover .iris-ring { transition: transform var(--dur-3) var(--ease-iris); transform: rotate(-6deg); }
+/* ---- Keystone-eye mark: entrance gesture + header wink ----
+   transform-box: fill-box anchors transforms to the glyph's own box — the
+   prior mark's hover rotated around the SVG origin (0,0) and visibly broke. */
+.eye-glyph { transform-box: fill-box; transform-origin: center; }
+.iris--focus .eye-glyph { animation: irisFocus var(--dur-4) var(--ease-iris) both; }
+@keyframes irisFocus { from { transform: scale(0.55); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.site-header .iris-link:hover .eye-glyph { animation: ayWink 0.5s var(--ease-iris); }
+@keyframes ayWink { 0%, 100% { transform: scaleY(1); } 45% { transform: scaleY(0.14); } }
 
 /* ============================================================
    Preserved legacy helpers — used by existing components.

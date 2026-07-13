@@ -6,7 +6,7 @@ export const contentType = "image/png";
 
 // Sentinel-dark social card — brand-consistent with the site (ink-900 navy,
 // trust-blue accent, single emerald chip). Headline is generated from code so
-// it never drifts from the site. The audited-iris mark is drawn as inline SVG
+// it never drifts from the site. The keystone-eye mark is drawn as inline SVG
 // with SOLID colors only (Satori-reliable; no gradients inside svg).
 export default function OpengraphImage() {
   return new ImageResponse(
@@ -26,33 +26,13 @@ export default function OpengraphImage() {
         {/* top: mark + wordmark */}
         <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
           <svg width={86} height={86} viewBox="0 0 48 48">
+            <rect x="3" y="3" width="42" height="42" rx="13" fill="#2563EB" />
             <path
-              d="M4 24 C12.5 12.5 35 12 44 22.5"
-              fill="none"
-              stroke="#F1F5F9"
-              strokeWidth="5.2"
-              strokeLinecap="round"
+              d="M9.5 24 C15 14.6 33 14.6 38.5 24 C33 33.4 15 33.4 9.5 24 Z"
+              fill="#FFFFFF"
             />
-            <path
-              d="M9 27.5 C16.5 33.8 31.5 34 39.5 27.5"
-              fill="none"
-              stroke="#F1F5F9"
-              strokeWidth="2.9"
-              strokeLinecap="round"
-              opacity={0.92}
-            />
-            <circle
-              cx="26"
-              cy="23.5"
-              r="7.2"
-              fill="none"
-              stroke="#3B82F6"
-              strokeWidth="2.7"
-              strokeLinecap="round"
-              strokeDasharray="37.3 7.94"
-              strokeDashoffset="9.43"
-            />
-            <circle cx="26" cy="23.5" r="3.2" fill="#60A5FA" />
+            <circle cx="24" cy="24" r="5.8" fill="#0F172A" />
+            <circle cx="26" cy="22" r="1.7" fill="#FFFFFF" />
           </svg>
           <div style={{ fontSize: 46, fontWeight: 700, color: "#F1F5F9" }}>Ayin</div>
         </div>

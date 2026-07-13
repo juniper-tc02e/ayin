@@ -1,11 +1,11 @@
 /**
- * The Ayin mark: "the audited iris" — a calm almond eye (ʿayin means *eye*)
- * whose iris is the product's own Exposure-Score ring: an open gauge arc with
- * a solid core. The eye is YOURS looking back — heavy-lidded, level, never a
- * surveillance eyeball (no lashes, no crosshair) — and the gauge-iris ties the
- * brand to the score ring users see in every report. Lids use currentColor so
- * the mark themes for free; the iris is trust-blue. Below 24px the gauge
- * detail collapses to a solid pupil so the favicon and micro uses stay crisp.
+ * The Ayin mark: "the keystone eye" — a bold white eye cut as NEGATIVE SPACE
+ * from a solid trust-blue tile (ʿayin means *eye*; the eye is YOURS, looking
+ * back). Third-generation mark, designed for robustness first: no strokes, no
+ * gauge gaps, nothing that can half-render or swing on a bad transform-origin
+ * (the failure modes of the two prior marks). Solid vesica + pupil stay
+ * legible at 16px. The tile means the mark never depends on page background;
+ * lids/whites are literal colors, not currentColor, so dark/light both work.
  * Single source for nav, hero, footer, and auth pages (favicon: app/icon.svg,
  * social card: app/opengraph-image.tsx — keep their geometry in sync).
  */
@@ -22,8 +22,9 @@ export default function IrisMark({
   // readers don't announce the mark redundantly.
   decorative?: boolean;
 }) {
-  // Unique gradient id per instance so multiple marks on a page don't collide.
-  const gid = `ay-pupil-${size}-${animate ? "a" : "s"}`;
+  // Deterministic per-variant gradient id: same-variant collisions are
+  // harmless (identical defs), and SSR/client markup stays stable.
+  const gid = `ay-tile-${size}-${animate ? "a" : "s"}`;
   const detailed = size >= 24;
   return (
     <svg
@@ -36,37 +37,25 @@ export default function IrisMark({
       className={animate ? "iris iris--focus" : "iris"}
     >
       <defs>
-        <radialGradient id={gid} cx="38%" cy="34%" r="75%">
-          <stop offset="0%" stopColor="var(--iris-400)" />
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--iris-500)" />
           <stop offset="100%" stopColor="var(--indigo-500)" />
-        </radialGradient>
+        </linearGradient>
       </defs>
-      {/* lids: heavy upper glance sweeping past the corner, light lower lid */}
-      <g fill="none" stroke="currentColor" strokeLinecap="round">
-        <path d="M4 24 C12.5 12.5 35 12 44 22.5" strokeWidth="5.2" />
-        <path d="M9 27.5 C16.5 33.8 31.5 34 39.5 27.5" strokeWidth="2.9" opacity=".92" />
+      <rect x="3" y="3" width="42" height="42" rx="13" fill={`url(#${gid})`} />
+      {/* the eye: white vesica negative space + solid pupil (+ light catch ≥24px) */}
+      <g className="eye-glyph">
+        <path d="M9.5 24 C15 14.6 33 14.6 38.5 24 C33 33.4 15 33.4 9.5 24 Z" fill="#FFFFFF" />
+        {detailed ? (
+          <>
+            <circle className="iris-pupil" cx="24" cy="24" r="5.8" fill="#0F172A" />
+            <circle cx="26" cy="22" r="1.7" fill="#FFFFFF" />
+          </>
+        ) : (
+          /* micro sizes: bigger pupil, no catch — keeps 16px crisp */
+          <circle className="iris-pupil" cx="24" cy="24" r="6.2" fill="#0F172A" />
+        )}
       </g>
-      {detailed ? (
-        <>
-          {/* iris = the Exposure-Score gauge: open ring + core */}
-          <circle
-            className="iris-ring"
-            cx="26"
-            cy="23.5"
-            r="7.2"
-            fill="none"
-            stroke="var(--iris-500)"
-            strokeWidth="2.7"
-            strokeLinecap="round"
-            strokeDasharray="37.3 7.94"
-            strokeDashoffset="9.43"
-          />
-          <circle className="iris-pupil" cx="26" cy="23.5" r="3.2" fill={`url(#${gid})`} />
-        </>
-      ) : (
-        /* micro sizes: solid pupil keeps the eye legible at 16px */
-        <circle className="iris-pupil" cx="25.5" cy="23.7" r="6" fill={`url(#${gid})`} />
-      )}
     </svg>
   );
 }
